@@ -22,6 +22,10 @@ import { exportExpenseToPDF } from '@/lib/utils/pdf-exporter';
 import { getGroupByCode, getGroupMembers, formatGroupCode } from '@/lib/utils/group-utils';
 import type { Group, GroupMember } from '@/lib/types/group';
 import type { CalculatorState } from '@/lib/types/ai-expense';
+import { useGroupCache } from '@/hooks/use-group-cache';
+import { useOffline } from '@/hooks/use-offline';
+import { useGroupSyncStatus } from '@/hooks/use-sync-status';
+import { OfflineTooltip } from '@/components/OfflineTooltip';
 
 export default function GroupCalculatorPage() {
   const params = useParams();
@@ -33,6 +37,11 @@ export default function GroupCalculatorPage() {
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Offline state
+  const isOffline = useOffline();
+  const { cachedGroup, isCached } = useGroupCache(code, group, groupMembers);
+  const { hasPending, pendingCount } = useGroupSyncStatus(code);
 
   // Calculator state
   const [people, setPeople] = useState<Person[]>([]);
@@ -64,6 +73,35 @@ export default function GroupCalculatorPage() {
     async function loadGroup() {
       try {
         setIsLoading(true);
+
+        // If offline, try to load from cache
+        if (isOffline && cachedGroup) {
+          console.log('📴 Loading group from cache');
+          
+          setGroup({
+            id: '',
+            code: cachedGroup.code,
+            name: cachedGroup.name,
+            created_at: new Date().toISOString(),
+          } as Group);
+          
+          setGroupMembers(cachedGroup.members);
+
+          // Auto-populate members as people in calculator
+          if (cachedGroup.members.length > 0) {
+            const initialPeople: Person[] = cachedGroup.members.map(member => ({
+              id: generateId(),
+              name: member.name,
+              active: true,
+            }));
+            setPeople(initialPeople);
+          }
+
+          setIsLoading(false);
+          return;
+        }
+
+        // Online: fetch from Supabase
         const groupData = await getGroupByCode(code);
 
         if (!groupData) {
@@ -90,13 +128,36 @@ export default function GroupCalculatorPage() {
         setIsLoading(false);
       } catch (err) {
         console.error('Error loading group:', err);
-        setError('Failed to load group data');
+        
+        // If error and offline, try cache as fallback
+        if (isOffline && cachedGroup) {
+          console.log('⚠️ Error loading online, falling back to cache');
+          setGroup({
+            id: '',
+            code: cachedGroup.code,
+            name: cachedGroup.name,
+            created_at: new Date().toISOString(),
+          } as Group);
+          setGroupMembers(cachedGroup.members);
+          
+          if (cachedGroup.members.length > 0) {
+            const initialPeople: Person[] = cachedGroup.members.map(member => ({
+              id: generateId(),
+              name: member.name,
+              active: true,
+            }));
+            setPeople(initialPeople);
+          }
+        } else {
+          setError('Failed to load group data');
+        }
+        
         setIsLoading(false);
       }
     }
 
     loadGroup();
-  }, [code]);
+  }, [code, isOffline, cachedGroup]);
 
   // Auto-switch to EXACT when using line items
   useEffect(() => {
@@ -241,7 +302,7 @@ export default function GroupCalculatorPage() {
                   <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
                     {group.name || 'Group Calculator'}
                   </h1>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-xs font-mono font-medium text-slate-700">
                       {formatGroupCode(group.code)}
                     </span>
@@ -249,6 +310,16 @@ export default function GroupCalculatorPage() {
                       <Users className="h-3.5 w-3.5" />
                       <span>{groupMembers.length} members</span>
                     </div>
+                    {isOffline && isCached && (
+                      <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700 border-amber-200">
+                        📴 Offline Mode
+                      </Badge>
+                    )}
+                    {hasPending && (
+                      <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 border-blue-200">
+                        ⏳ {pendingCount} pending sync
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>
@@ -269,11 +340,13 @@ export default function GroupCalculatorPage() {
           {/* AI Quick Setup - Mobile First, Prominent */}
           {groupMembers.length > 0 && (
             <div className="mb-4 lg:mb-5">
-              <AIExpenseInput
-                mode="group"
-                groupMembers={groupMembers.map(m => m.name)}
-                onApply={handleAIApply}
-              />
+              <OfflineTooltip message="AI expense parser requires internet connection">
+                <AIExpenseInput
+                  mode="group"
+                  groupMembers={groupMembers.map(m => m.name)}
+                  onApply={handleAIApply}
+                />
+              </OfflineTooltip>
             </div>
           )}
 

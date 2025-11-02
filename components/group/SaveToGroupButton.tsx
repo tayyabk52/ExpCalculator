@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Save, Loader2, CheckCircle2 } from 'lucide-react';
+import { Save, Loader2, CheckCircle2, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,6 +17,8 @@ import { supabase } from '@/lib/db/supabase';
 import { ensureGroupMembers } from '@/lib/utils/group-utils';
 import type { Person, LineItem, Payer, SplitMethod, Currency, Transfer } from '@/lib/types/expense';
 import type { ExpenseData } from '@/lib/types/group';
+import { useOffline } from '@/hooks/use-offline';
+import { syncManager } from '@/lib/sync/sync-manager';
 
 type SaveToGroupButtonProps = {
   groupId: string;
@@ -57,6 +59,7 @@ export default function SaveToGroupButton({
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const isOffline = useOffline();
   const activePeople = people.filter(p => p.active);
 
   const handleSave = async () => {
@@ -79,11 +82,7 @@ export default function SaveToGroupButton({
     setError(null);
 
     try {
-      // Step 1: Ensure all people are added as group members
-      const memberNames = activePeople.map(p => p.name);
-      await ensureGroupMembers(groupId, memberNames);
-
-      // Step 2: Prepare expense data
+      // Prepare expense data
       const expenseData: ExpenseData = {
         title: expenseTitle.trim(),
         timestamp: new Date().toISOString(),
@@ -100,7 +99,42 @@ export default function SaveToGroupButton({
         transfers,
       };
 
-      // Step 3: Insert expense
+      // If offline, save to IndexedDB for later sync
+      if (isOffline) {
+        await syncManager.addExpenseOffline(groupCode, {
+          groupId,
+          title: expenseTitle.trim(),
+          currency,
+          total_amount: total,
+          expense_data: expenseData,
+          memberNames: activePeople.map(p => p.name),
+          transfers: transfers.map(transfer => ({
+            from_member: people.find(p => p.id === transfer.from)?.name || '',
+            to_member: people.find(p => p.id === transfer.to)?.name || '',
+            amount: transfer.amount,
+          })),
+        });
+
+        // Success!
+        setSaveSuccess(true);
+        setIsSaving(false);
+
+        // Close dialog after 2 seconds
+        setTimeout(() => {
+          setIsOpen(false);
+          setSaveSuccess(false);
+          setExpenseTitle('');
+        }, 2000);
+        
+        return;
+      }
+
+      // Online: Save directly to Supabase
+      // Step 1: Ensure all people are added as group members
+      const memberNames = activePeople.map(p => p.name);
+      await ensureGroupMembers(groupId, memberNames);
+
+      // Step 2: Insert expense
       const { data: expense, error: expenseError } = await supabase
         .from('group_expenses')
         .insert({
@@ -116,7 +150,7 @@ export default function SaveToGroupButton({
       if (expenseError) throw expenseError;
       if (!expense) throw new Error('Failed to create expense');
 
-      // Step 4: Insert settlements
+      // Step 3: Insert settlements
       if (transfers.length > 0) {
         const settlements = transfers.map(transfer => ({
           expense_id: expense.id,
@@ -170,16 +204,22 @@ export default function SaveToGroupButton({
           className="w-full gap-2 min-w-0"
           size="lg"
         >
-          <Save className="h-4 w-4" />
-          Add to Group List
+          {isOffline ? <WifiOff className="h-4 w-4" /> : <Save className="h-4 w-4" />}
+          {isOffline ? 'Add Offline (Will Sync Later)' : 'Add to Group List'}
         </Button>
       </DialogTrigger>
 
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Save Expense to Group</DialogTitle>
+          <DialogTitle>
+            {isOffline ? 'Save Expense Offline' : 'Save Expense to Group'}
+          </DialogTitle>
           <DialogDescription>
-            This expense will be added to group {groupCode} and settlements will be tracked
+            {isOffline ? (
+              <>This expense will be saved offline and synced to group {groupCode} when internet is restored</>
+            ) : (
+              <>This expense will be added to group {groupCode} and settlements will be tracked</>
+            )}
           </DialogDescription>
         </DialogHeader>
 

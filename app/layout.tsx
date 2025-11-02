@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import { OfflineProvider } from "@/components/OfflineProvider";
 
 export const metadata: Metadata = {
   title: "CalcHub - Smart Calculators",
@@ -27,9 +28,11 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="flex min-h-screen flex-col overflow-x-hidden">
-        <Navbar />
-        <main className="flex-1 w-full">{children}</main>
-        <Footer />
+        <OfflineProvider>
+          <Navbar />
+          <main className="flex-1 w-full">{children}</main>
+          <Footer />
+        </OfflineProvider>
       </body>
     </html>
   );
