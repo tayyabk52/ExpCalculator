@@ -1,14 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { getPinnedGroups, formatRelativeTime, updateLastVisited } from '@/lib/utils/pinned-groups';
 import type { PinnedGroup } from '@/lib/types/pinned-groups';
 import { Users, ArrowRight, Star, Sparkles } from 'lucide-react';
-import Link from 'next/link';
 
 export default function QuickAccessGroups() {
   const [pinnedGroups, setPinnedGroups] = useState<PinnedGroup[]>([]);
   const [mounted, setMounted] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     setMounted(true);
@@ -27,6 +28,7 @@ export default function QuickAccessGroups() {
 
   const handleGroupClick = (code: string) => {
     updateLastVisited(code);
+    router.push(`/groups/${code}`);
   };
 
   return (
@@ -52,11 +54,10 @@ export default function QuickAccessGroups() {
       {/* Pinned Groups Grid */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {pinnedGroups.map((group, index) => (
-          <Link
+          <button
             key={group.code}
-            href={`/groups/${group.code}`}
             onClick={() => handleGroupClick(group.code)}
-            className="group relative overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/50 p-4 transition-all hover:shadow-md hover:shadow-emerald-100/50 hover:border-emerald-300 hover:-translate-y-0.5"
+            className="group relative overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/50 p-4 transition-all hover:shadow-md hover:shadow-emerald-100/50 hover:border-emerald-300 hover:-translate-y-0.5 w-full text-left"
             style={{
               animationDelay: `${index * 100}ms`,
             }}
@@ -101,7 +102,7 @@ export default function QuickAccessGroups() {
                 <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
               </div>
             </div>
-          </Link>
+          </button>
         ))}
       </div>
 
