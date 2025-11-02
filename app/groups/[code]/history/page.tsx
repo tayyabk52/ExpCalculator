@@ -23,6 +23,8 @@ import ExportGroupStatementButton from '@/components/group/ExportGroupStatementB
 import HistoryFilters, { type HistoryFiltersState } from '@/components/group/HistoryFilters';
 import type { Group, GroupExpense, GroupSettlement, NetSettlement, MemberBalance } from '@/lib/types/group';
 import type { Currency } from '@/lib/types/expense';
+import { useOffline } from '@/hooks/use-offline';
+import { db } from '@/lib/db/offline-db';
 
 export default function GroupHistoryPage() {
   const params = useParams();
@@ -40,6 +42,9 @@ export default function GroupHistoryPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedExpense, setSelectedExpense] = useState<GroupExpense | null>(null);
   const [filter, setFilter] = useState<'all' | 'open' | 'closed'>('all');
+  
+  // Offline state
+  const isOffline = useOffline();
   
   // Filter state
   const [filters, setFilters] = useState<HistoryFiltersState>({
@@ -63,6 +68,43 @@ export default function GroupHistoryPage() {
       if (showLoader) setIsLoading(true);
       else setIsRefreshing(true);
 
+      // If offline, try to load from cache
+      if (isOffline) {
+        console.log('📴 Loading group history from cache');
+        
+        const cachedHistory = await db.getCachedGroupHistory(code);
+        
+        if (cachedHistory) {
+          // Load cached group data
+          const cachedGroup = await db.getCachedGroup(code);
+          
+          if (cachedGroup) {
+            setGroup({
+              id: '',
+              code: cachedGroup.code,
+              name: cachedGroup.name,
+              created_at: new Date().toISOString(),
+            } as Group);
+          }
+          
+          // Set cached history data
+          setExpenses(cachedHistory.expenses);
+          setSettlements(cachedHistory.settlements);
+          setNetSettlements(cachedHistory.netSettlements);
+          setMemberBalances(cachedHistory.memberBalances);
+          
+          setIsLoading(false);
+          setIsRefreshing(false);
+          return;
+        } else {
+          setError('No cached data available. Please go online to view history.');
+          setIsLoading(false);
+          setIsRefreshing(false);
+          return;
+        }
+      }
+
+      // Online: fetch from Supabase
       const groupData = await getGroupByCode(code);
 
       if (!groupData) {
@@ -92,11 +134,48 @@ export default function GroupHistoryPage() {
       setNetSettlements(netSettlementsData);
       setMemberBalances(balancesData);
 
+      // Cache the history data for offline access
+      await db.cacheGroupHistory(
+        code,
+        expensesData,
+        settlementsData,
+        netSettlementsData,
+        balancesData
+      );
+
       setIsLoading(false);
       setIsRefreshing(false);
     } catch (err) {
       console.error('Error loading group history:', err);
-      setError('Failed to load group data');
+      
+      // If error and offline, try cache as fallback
+      if (isOffline) {
+        const cachedHistory = await db.getCachedGroupHistory(code);
+        
+        if (cachedHistory) {
+          console.log('⚠️ Error loading online, falling back to cache');
+          
+          const cachedGroup = await db.getCachedGroup(code);
+          if (cachedGroup) {
+            setGroup({
+              id: '',
+              code: cachedGroup.code,
+              name: cachedGroup.name,
+              created_at: new Date().toISOString(),
+            } as Group);
+          }
+          
+          setExpenses(cachedHistory.expenses);
+          setSettlements(cachedHistory.settlements);
+          setNetSettlements(cachedHistory.netSettlements);
+          setMemberBalances(cachedHistory.memberBalances);
+        } else {
+          setError('Failed to load group data and no cache available');
+        }
+      } else {
+        setError('Failed to load group data');
+      }
+      
       setIsLoading(false);
       setIsRefreshing(false);
     }
@@ -266,9 +345,16 @@ export default function GroupHistoryPage() {
                 <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
                   {group.name || 'Group History'}
                 </h1>
-                <p className="text-md sm:text-lg font-medium text-slate-600 mt-1">
-                  {formatGroupCode(group.code)}
-                </p>
+                <div className="flex items-center gap-2 flex-wrap mt-1">
+                  <p className="text-md sm:text-lg font-medium text-slate-600">
+                    {formatGroupCode(group.code)}
+                  </p>
+                  {isOffline && (
+                    <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700 border-amber-200">
+                      📴 Offline Mode
+                    </Badge>
+                  )}
+                </div>
               </div>
               {/* Action Buttons */}
               <div className="flex space-x-2">

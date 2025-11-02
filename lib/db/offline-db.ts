@@ -8,6 +8,7 @@ import {
   CachedGroup,
   OfflineExpense,
   CachedExpense,
+  CachedGroupHistory,
   DB_CONFIG,
   CACHE_CONFIG,
 } from './schema';
@@ -20,15 +21,24 @@ class OfflineDatabase extends Dexie {
   cachedGroups!: Table<CachedGroup, string>;
   offlineExpenses!: Table<OfflineExpense, string>;
   cachedExpenses!: Table<CachedExpense, string>;
+  cachedGroupHistory!: Table<CachedGroupHistory, string>;
 
   constructor() {
     super(DB_CONFIG.name);
 
-    // Define schema version and stores
-    this.version(DB_CONFIG.version).stores({
-      cachedGroups: DB_CONFIG.stores.cachedGroups,
-      offlineExpenses: DB_CONFIG.stores.offlineExpenses,
-      cachedExpenses: DB_CONFIG.stores.cachedExpenses,
+    // Define schema versions
+    this.version(1).stores({
+      cachedGroups: 'code, lastAccessed',
+      offlineExpenses: 'id, groupCode, syncStatus, createdAt',
+      cachedExpenses: 'id, groupCode, cachedAt',
+    });
+
+    // Version 2: Add cachedGroupHistory
+    this.version(2).stores({
+      cachedGroups: 'code, lastAccessed',
+      offlineExpenses: 'id, groupCode, syncStatus, createdAt',
+      cachedExpenses: 'id, groupCode, cachedAt',
+      cachedGroupHistory: 'groupCode, cachedAt',
     });
   }
 
@@ -252,6 +262,46 @@ class OfflineDatabase extends Dexie {
     }
   }
 
+  // ==================== CACHED GROUP HISTORY ====================
+
+  /**
+   * Cache complete group history for offline viewing
+   */
+  async cacheGroupHistory(
+    groupCode: string,
+    expenses: any[],
+    settlements: any[],
+    netSettlements: any[],
+    memberBalances: any[]
+  ) {
+    await this.cachedGroupHistory.put({
+      groupCode,
+      expenses,
+      settlements,
+      netSettlements,
+      memberBalances,
+      cachedAt: Date.now(),
+    });
+
+    console.log(`✅ Cached history for group: ${groupCode}`);
+  }
+
+  /**
+   * Get cached group history
+   */
+  async getCachedGroupHistory(groupCode: string): Promise<CachedGroupHistory | null> {
+    const history = await this.cachedGroupHistory.get(groupCode);
+    return history || null;
+  }
+
+  /**
+   * Check if group history is cached
+   */
+  async isGroupHistoryCached(groupCode: string): Promise<boolean> {
+    const count = await this.cachedGroupHistory.where('groupCode').equals(groupCode).count();
+    return count > 0;
+  }
+
   // ==================== UTILITY METHODS ====================
 
   /**
@@ -263,6 +313,7 @@ class OfflineDatabase extends Dexie {
       this.cachedGroups.clear(),
       this.offlineExpenses.clear(),
       this.cachedExpenses.clear(),
+      this.cachedGroupHistory.clear(),
     ]);
   }
 
@@ -270,16 +321,18 @@ class OfflineDatabase extends Dexie {
    * Get database statistics
    */
   async getStats() {
-    const [cachedGroupsCount, pendingCount, cachedExpensesCount] = await Promise.all([
+    const [cachedGroupsCount, pendingCount, cachedExpensesCount, cachedHistoryCount] = await Promise.all([
       this.cachedGroups.count(),
       this.getPendingSyncCount(),
       this.cachedExpenses.count(),
+      this.cachedGroupHistory.count(),
     ]);
 
     return {
       cachedGroups: cachedGroupsCount,
       pendingExpenses: pendingCount,
       cachedExpenses: cachedExpensesCount,
+      cachedHistory: cachedHistoryCount,
     };
   }
 }

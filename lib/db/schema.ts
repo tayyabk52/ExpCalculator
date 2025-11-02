@@ -44,15 +44,29 @@ export interface CachedExpense {
 }
 
 /**
+ * Cached group history data
+ * Stores complete history including expenses and settlements
+ */
+export interface CachedGroupHistory {
+  groupCode: string;         // Group code (primary key)
+  expenses: any[];           // All group expenses
+  settlements: any[];        // All group settlements
+  netSettlements: any[];     // Calculated net settlements
+  memberBalances: any[];     // Member balance summaries
+  cachedAt: number;          // Timestamp when cached
+}
+
+/**
  * Database version and schema configuration
  */
 export const DB_CONFIG = {
   name: 'ExpenseCalculatorDB',
-  version: 1,
+  version: 2,
   stores: {
     cachedGroups: 'code, lastAccessed',
     offlineExpenses: 'id, groupCode, syncStatus, createdAt',
     cachedExpenses: 'id, groupCode, cachedAt',
+    cachedGroupHistory: 'groupCode, cachedAt',
   },
 } as const;
 
