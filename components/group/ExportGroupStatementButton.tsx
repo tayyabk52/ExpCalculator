@@ -63,19 +63,13 @@ export default function ExportGroupStatementButton({
       size={size}
       onClick={handleExport}
       disabled={isExporting}
-      className={`gap-2 ${className}`}
+      className={className}
+      title={isExporting ? "Generating statement..." : "Export statement"}
     >
       {isExporting ? (
-        <>
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <span className="hidden sm:inline">Generating...</span>
-        </>
+        <Loader2 className="h-4 w-4 animate-spin" />
       ) : (
-        <>
-          <FileDown className="h-4 w-4" />
-          <span className="hidden sm:inline">Export Statement</span>
-          <span className="sm:hidden">Export</span>
-        </>
+        <FileDown className="h-4 w-4" />
       )}
     </Button>
   );

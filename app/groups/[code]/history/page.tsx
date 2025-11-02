@@ -248,11 +248,11 @@ export default function GroupHistoryPage() {
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-6xl p-3 sm:p-4 md:p-6 lg:p-8">
         {/* Header */}
-        <div className="mb-4 sm:mb-6">
+        <div className="mb-6">
           <Button
             variant="ghost"
             onClick={() => router.push(`/groups/${code}`)}
-            className="mb-3 sm:mb-4 gap-2 -ml-2"
+            className="mb-4 gap-2 -ml-2"
             size="sm"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -260,94 +260,122 @@ export default function GroupHistoryPage() {
             <span className="xs:hidden">Back</span>
           </Button>
 
-          <div className="space-y-3 sm:space-y-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                  <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
-                    {group.name || 'Group History'}
-                  </h1>
-                  <Badge variant="secondary" className="font-mono text-xs sm:text-sm">
-                    {formatGroupCode(group.code)}
-                  </Badge>
-                </div>
-                <p className="text-sm sm:text-base text-muted-foreground">
-                  View all expenses and settlements
+          <div className="px-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
+                  {group.name || 'Group History'}
+                </h1>
+                <p className="text-md sm:text-lg font-medium text-slate-600 mt-1">
+                  {formatGroupCode(group.code)}
                 </p>
               </div>
-
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <HistoryFilters
-                  filters={filters}
-                  onFiltersChange={setFilters}
-                  members={allMembers}
-                  currency={currency}
-                />
-                <ExportGroupStatementButton
-                  group={group}
-                  expenses={expenses}
-                  netSettlements={netSettlements}
-                  memberBalances={memberBalances}
-                  currency={currency}
-                  size="sm"
-                />
-                <Button
+              {/* Action Buttons */}
+              <div className="flex space-x-2">
+                <div className="relative [&>button]:p-1.5 [&>button]:sm:p-2 [&>button]:rounded-full [&>button]:bg-slate-100 [&>button]:hover:bg-slate-200 [&>button]:border-0 [&_svg]:h-5 [&_svg]:w-5 [&_svg]:sm:h-6 [&_svg]:sm:w-6">
+                  <HistoryFilters
+                    filters={filters}
+                    onFiltersChange={setFilters}
+                    members={allMembers}
+                    currency={currency}
+                  />
+                  {(filters.dateFrom || filters.dateTo || filters.selectedMember || filters.minAmount || filters.maxAmount || filters.settlementStatus !== 'all') && (
+                    <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] sm:min-w-[18px] sm:h-[18px] flex items-center justify-center rounded-full bg-purple-600 text-white text-[10px] sm:text-xs font-semibold px-0.5 sm:px-1 pointer-events-none">
+                      {[filters.dateFrom, filters.dateTo, filters.selectedMember, filters.minAmount, filters.maxAmount, filters.settlementStatus !== 'all' ? 'status' : ''].filter(Boolean).length}
+                    </span>
+                  )}
+                </div>
+                <div className="[&>button]:p-1.5 [&>button]:sm:p-2 [&>button]:rounded-full [&>button]:bg-slate-100 [&>button]:hover:bg-slate-200 [&>button]:border-0 [&>button]:whitespace-nowrap [&>button]:min-w-0 [&_svg]:h-5 [&_svg]:w-5 [&_svg]:sm:h-6 [&_svg]:sm:w-6 [&>button]:text-xs [&>button]:sm:text-sm">
+                  <ExportGroupStatementButton
+                    group={group}
+                    expenses={expenses}
+                    netSettlements={netSettlements}
+                    memberBalances={memberBalances}
+                    currency={currency}
+                    size="icon"
+                  />
+                </div>
+                <button
                   onClick={() => loadData(false)}
                   disabled={isRefreshing}
-                  variant="outline"
-                  className="gap-2"
-                  size="sm"
+                  className="p-1.5 sm:p-2 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors duration-200 disabled:opacity-50"
                 >
                   {isRefreshing ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span className="hidden sm:inline">Refreshing...</span>
-                    </>
+                    <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 animate-spin text-slate-700" />
                   ) : (
-                    <>
-                      <RefreshCw className="h-4 w-4" />
-                      <span className="hidden sm:inline">Refresh</span>
-                    </>
+                    <RefreshCw className="h-5 w-5 sm:h-6 sm:w-6 text-slate-700" />
                   )}
-                </Button>
+                </button>
               </div>
             </div>
+            <p className="text-sm text-slate-500 mt-2">View all expenses and settlements</p>
           </div>
         </div>
 
-        {/* Stats Cards - Clean Slate Design */}
-        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 mb-4 sm:mb-6">
-          <div className="p-3 sm:p-4 rounded-xl border border-slate-100 bg-white shadow-sm hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm text-slate-500 mb-1">Total Expenses</div>
-            <div className="text-xl sm:text-2xl font-bold text-slate-900">{totalExpenses}</div>
-          </div>
-          <div className="p-3 sm:p-4 rounded-xl border border-slate-100 bg-white shadow-sm hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm text-slate-500 mb-1">Total Amount</div>
-            <div className="text-base sm:text-xl font-bold text-slate-900 truncate">
-              {currency} {totalAmount.toFixed(2)}
-            </div>
-          </div>
-          <div className="p-3 sm:p-4 rounded-xl border border-slate-100 bg-white shadow-sm hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm text-slate-500 mb-1">Open</div>
-            <div className="text-xl sm:text-2xl font-bold text-slate-700">{openSettlementsCount}</div>
-          </div>
-          <div className="p-3 sm:p-4 rounded-xl border border-slate-100 bg-white shadow-sm hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm text-slate-500 mb-1">Settled</div>
-            <div className="text-xl sm:text-2xl font-bold text-emerald-600">{closedSettlementsCount}</div>
-            {(manuallyPaidCount > 0 || autoSettledCount > 0) && (
-              <div className="mt-1.5 flex flex-wrap gap-1">
-                {manuallyPaidCount > 0 && (
-                  <span className="text-[10px] sm:text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-medium">
-                    ✓ {manuallyPaidCount}
-                  </span>
-                )}
-                {autoSettledCount > 0 && (
-                  <span className="text-[10px] sm:text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">
-                    ⚖️ {autoSettledCount}
-                  </span>
-                )}
+        {/* Stats Cards - Modern Dashboard Design */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 gap-4 px-4 mb-6">
+          {/* Card 1: Total Expenses */}
+          <div className="dashboard-card bg-white p-4 sm:p-5 rounded-none sm:rounded-xl sm:shadow-sm" style={{ animationDelay: '0.1s' }}>
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
               </div>
-            )}
+              <h3 className="text-xs sm:text-sm font-medium text-slate-500">Total Expenses</h3>
+            </div>
+            <p className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mt-3 sm:mt-4">{totalExpenses}</p>
+          </div>
+
+          {/* Card 2: Total Amount */}
+          <div className="dashboard-card bg-white p-4 sm:p-5 rounded-none sm:rounded-xl sm:shadow-sm" style={{ animationDelay: '0.2s' }}>
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <h3 className="text-xs sm:text-sm font-medium text-slate-500">Total Amount</h3>
+            </div>
+            <p className="text-xl sm:text-3xl md:text-4xl font-bold text-blue-600 mt-3 sm:mt-4 break-words">
+              {currency} {totalAmount.toFixed(2)}
+            </p>
+          </div>
+
+          {/* Card 3: Open */}
+          <div className="dashboard-card bg-white p-4 sm:p-5 rounded-none sm:rounded-xl sm:shadow-sm" style={{ animationDelay: '0.3s' }}>
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-xs sm:text-sm font-medium text-slate-500">Open</h3>
+            </div>
+            <p className="text-3xl sm:text-4xl md:text-5xl font-bold text-amber-600 mt-3 sm:mt-4">{openSettlementsCount}</p>
+          </div>
+
+          {/* Card 4: Settled */}
+          <div className="dashboard-card bg-white p-4 sm:p-5 rounded-none sm:rounded-xl sm:shadow-sm" style={{ animationDelay: '0.4s' }}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2 sm:space-x-3">
+                <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-xs sm:text-sm font-medium text-slate-500">Settled</h3>
+              </div>
+              {(manuallyPaidCount > 0 || autoSettledCount > 0) && (
+                <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full bg-emerald-100 text-[10px] sm:text-xs font-semibold text-emerald-800">
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-0.5 sm:mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  {manuallyPaidCount + autoSettledCount}
+                </span>
+              )}
+            </div>
+            <p className="text-3xl sm:text-4xl md:text-5xl font-bold text-emerald-600 mt-3 sm:mt-4">{closedSettlementsCount}</p>
           </div>
         </div>
 
