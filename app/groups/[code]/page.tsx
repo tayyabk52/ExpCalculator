@@ -16,9 +16,11 @@ import PaymentTracker from '@/components/expense/PaymentTracker';
 import SplitMethodSelector from '@/components/expense/SplitMethodSelector';
 import ResultsDisplay from '@/components/expense/ResultsDisplay';
 import SaveToGroupButton from '@/components/group/SaveToGroupButton';
+import AIExpenseInput from '@/components/expense/AIExpenseInput';
 import { exportExpenseToPDF } from '@/lib/utils/pdf-exporter';
 import { getGroupByCode, getGroupMembers, formatGroupCode } from '@/lib/utils/group-utils';
 import type { Group, GroupMember } from '@/lib/types/group';
+import type { CalculatorState } from '@/lib/types/ai-expense';
 
 export default function GroupCalculatorPage() {
   const params = useParams();
@@ -140,6 +142,26 @@ export default function GroupCalculatorPage() {
     });
   };
 
+  // Handler for AI-generated data
+  const handleAIApply = (state: CalculatorState) => {
+    console.log('Applying AI-generated state:', state);
+
+    // Apply all state from AI
+    setPeople(state.people);
+    setCurrency(state.currency);
+    setTotal(state.total);
+    setUseLineItems(state.useLineItems);
+    setItems(state.items);
+    setPayers(state.payers);
+    setMethod(state.method);
+    setExactByPerson(state.exactByPerson);
+    setPercentByPerson(state.percentByPerson);
+    setSharesByPerson(state.sharesByPerson);
+
+    // Smooth scroll to show filled calculator
+    window.scrollTo({ top: 300, behavior: 'smooth' });
+  };
+
   // Loading state
   if (isLoading) {
     return (
@@ -238,6 +260,17 @@ export default function GroupCalculatorPage() {
 
         {/* Main Content - Modern Card Layout */}
         <div className="mx-auto max-w-7xl w-full px-4 py-4 sm:py-5 overflow-x-hidden">
+          {/* AI Quick Setup - Mobile First, Prominent */}
+          {groupMembers.length > 0 && (
+            <div className="mb-4 lg:mb-5">
+              <AIExpenseInput
+                mode="group"
+                groupMembers={groupMembers.map(m => m.name)}
+                onApply={handleAIApply}
+              />
+            </div>
+          )}
+
           <div className="grid gap-4 lg:gap-5 lg:grid-cols-2 w-full max-w-full">
             {/* Left Column - Input Sections */}
             <div className="space-y-4 lg:space-y-5 min-w-0 w-full max-w-full overflow-hidden">

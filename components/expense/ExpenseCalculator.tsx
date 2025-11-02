@@ -14,7 +14,9 @@ import BillAmountSection from '@/components/expense/BillAmountSection';
 import PaymentTracker from '@/components/expense/PaymentTracker';
 import SplitMethodSelector from '@/components/expense/SplitMethodSelector';
 import ResultsDisplay from '@/components/expense/ResultsDisplay';
+import AIExpenseInput from '@/components/expense/AIExpenseInput';
 import { exportExpenseToPDF } from '@/lib/utils/pdf-exporter';
+import type { CalculatorState } from '@/lib/types/ai-expense';
 
 export default function ExpenseCalculatorContainer() {
   // State
@@ -107,6 +109,26 @@ export default function ExpenseCalculatorContainer() {
     setSharesByPerson({});
   };
 
+  // Handler for AI-generated data
+  const handleAIApply = (state: CalculatorState) => {
+    console.log('Applying AI-generated state:', state);
+
+    // Apply all state from AI
+    setPeople(state.people);
+    setCurrency(state.currency);
+    setTotal(state.total);
+    setUseLineItems(state.useLineItems);
+    setItems(state.items);
+    setPayers(state.payers);
+    setMethod(state.method);
+    setExactByPerson(state.exactByPerson);
+    setPercentByPerson(state.percentByPerson);
+    setSharesByPerson(state.sharesByPerson);
+
+    // Smooth scroll to show filled calculator
+    window.scrollTo({ top: 300, behavior: 'smooth' });
+  };
+
   return (
     <TooltipProvider delayDuration={0} skipDelayDuration={0}>
       <div className="w-full overflow-x-hidden">
@@ -162,6 +184,14 @@ export default function ExpenseCalculatorContainer() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* AI Quick Setup - Mobile First, Prominent */}
+          <div className="mb-6 sm:mb-8">
+            <AIExpenseInput
+              mode="standalone"
+              onApply={handleAIApply}
+            />
           </div>
 
         {/* Main Content */}
