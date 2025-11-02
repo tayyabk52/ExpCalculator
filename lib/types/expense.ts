@@ -1,6 +1,6 @@
 // Shared types for expense calculator
 
-export type Currency = "PKR" | "USD" | "EUR" | "GBP" | "AED";
+export type Currency = "PKR" | "USD" | "EUR" | "GBP" | "AED" | "INR" | "SAR" | "CAD" | "AUD" | "JPY";
 
 export type Person = {
   id: string;
