@@ -50,7 +50,6 @@ export default function MemberBalanceSummary({ balances, currency }: MemberBalan
   return (
     <div className="space-y-4">
       <div className="px-4 sm:px-0">
-        <h2 className="text-lg font-semibold text-slate-700">Member Summary</h2>
         <p className="text-sm text-slate-500">Overall balance for each member</p>
       </div>
 
