@@ -4,10 +4,10 @@ import { ensureGroupMembers } from '@/lib/utils/group-utils';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
   try {
-    const { code } = params;
+    const { code } = await params;
     const body = await request.json();
 
     const {
