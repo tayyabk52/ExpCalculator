@@ -6,13 +6,34 @@ import { OfflineProvider } from "@/components/OfflineProvider";
 
 export const metadata: Metadata = {
   title: "CalcHub - Smart Calculators",
-  description: "Split bills, calculate tips, and more with our suite of smart calculators",
+  description: "Split bills, calculate tips, and manage group expenses with offline support",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "CalcHub",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  openGraph: {
+    type: "website",
+    siteName: "CalcHub",
+    title: "CalcHub - Smart Calculators",
+    description: "Split bills, calculate tips, and manage group expenses with offline support",
+  },
+  twitter: {
+    card: "summary",
+    title: "CalcHub - Smart Calculators",
+    description: "Split bills, calculate tips, and manage group expenses with offline support",
+  },
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
+  themeColor: "#10b981",
 };
 
 export default function RootLayout({
@@ -26,6 +47,8 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+        <link rel="apple-touch-icon" href="/icon-192.svg" />
+        <link rel="icon" type="image/svg+xml" href="/icon-192.svg" />
       </head>
       <body className="flex min-h-screen flex-col overflow-x-hidden">
         <OfflineProvider>

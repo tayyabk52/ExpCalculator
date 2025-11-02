@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="512" height="512" fill="#10b981" rx="76.8"/>
+  
+  <!-- Calculator Icon -->
+  <g transform="translate(128, 128)">
+    <rect width="256" height="256" fill="white" rx="25.6"/>
+    
+    <!-- Display -->
+    <rect x="51.2" y="51.2" width="153.6" height="40.96" fill="#10b981" rx="5.12"/>
+    
+    <!-- Buttons -->
+    <circle cx="76.8" cy="143.36" r="15.36" fill="#10b981"/>
+    <circle cx="128" cy="143.36" r="15.36" fill="#10b981"/>
+    <circle cx="179.2" cy="143.36" r="15.36" fill="#10b981"/>
+    
+    <circle cx="76.8" cy="194.56" r="15.36" fill="#10b981"/>
+    <circle cx="128" cy="194.56" r="15.36" fill="#10b981"/>
+    <circle cx="179.2" cy="194.56" r="15.36" fill="#10b981"/>
+  </g>
+</svg>
