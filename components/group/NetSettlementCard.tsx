@@ -1,15 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowRight, CheckCircle2, Clock, Loader2, Undo2 } from 'lucide-react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Check, Loader2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils/expense-utils';
 import { supabase } from '@/lib/db/supabase';
 import type { NetSettlement } from '@/lib/types/group';
 import type { Currency } from '@/lib/types/expense';
-import { format } from 'date-fns';
 
 type NetSettlementCardProps = {
   settlement: NetSettlement;
@@ -77,96 +73,73 @@ export default function NetSettlementCard({
   };
 
   return (
-    <Card
-      className={`p-3 sm:p-4 shadow-sm hover:shadow-md transition-all ${
-        settlement.status === 'closed'
-          ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800'
-          : ''
-      }`}
-    >
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-        {/* Settlement Info */}
-        <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-          {settlement.status === 'closed' ? (
-            <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
-          ) : (
-            <Clock className="h-5 w-5 text-orange-600 flex-shrink-0" />
-          )}
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap text-sm sm:text-base">
-              <span className="font-semibold truncate">{settlement.from}</span>
-              <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
-              <span className="font-semibold truncate">{settlement.to}</span>
-            </div>
-            <div className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-              {settlement.relatedExpenses.length} expense
-              {settlement.relatedExpenses.length !== 1 ? 's' : ''} combined
-            </div>
-          </div>
-        </div>
-
-        {/* Amount & Status */}
-        <div className="flex items-center justify-between sm:justify-end gap-3 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="font-bold text-base sm:text-lg">
-              {formatCurrency(settlement.amount, currency)}
-            </div>
+    <div className="bg-white p-4 rounded-lg sm:rounded-xl sm:shadow-sm border border-slate-100">
+      {/* Row 1: The "What" and "How much" */}
+      <div className="flex items-start justify-between">
+        <div className="flex items-center space-x-3">
+          {/* Semantic Icon - Outstanding (Amber) or Settled (Emerald) */}
+          <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+            settlement.status === 'closed'
+              ? 'bg-emerald-100'
+              : 'bg-amber-100'
+          }`}>
             {settlement.status === 'closed' ? (
-              <Badge variant="default" className="bg-green-600 text-xs">
-                Paid
-              </Badge>
+              <svg className="w-5 h-5 text-emerald-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
             ) : (
-              <Badge variant="secondary" className="text-xs">
-                Outstanding
-              </Badge>
+              <svg className="w-5 h-5 text-amber-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
             )}
           </div>
+          <div>
+            <p className="text-base font-semibold text-slate-900">
+              {settlement.from} → {settlement.to}
+            </p>
+            <p className="text-sm text-slate-500">
+              {settlement.relatedExpenses.length} expense{settlement.relatedExpenses.length !== 1 ? 's' : ''} combined
+            </p>
+          </div>
+        </div>
 
-          {/* Action Button */}
-          {settlement.status === 'open' ? (
-            <Button
-              onClick={handleMarkAsPaid}
-              disabled={isUpdating}
-              size="sm"
-              className="gap-1 sm:gap-2"
-            >
-              {isUpdating ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span className="hidden md:inline">Updating...</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  <span className="hidden md:inline">Mark Paid</span>
-                  <span className="md:hidden">✓</span>
-                </>
-              )}
-            </Button>
-          ) : (
-            <Button
-              onClick={handleUndo}
-              disabled={isUpdating}
-              size="sm"
-              variant="outline"
-              className="gap-1 sm:gap-2"
-            >
-              {isUpdating ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span className="hidden md:inline">Undoing...</span>
-                </>
-              ) : (
-                <>
-                  <Undo2 className="h-3.5 w-3.5" />
-                  <span className="hidden md:inline">Undo</span>
-                </>
-              )}
-            </Button>
-          )}
+        <div className="text-right">
+          <p className="text-lg font-bold text-slate-900">
+            {formatCurrency(settlement.amount, currency)}
+          </p>
         </div>
       </div>
-    </Card>
+
+      {/* Divider */}
+      <div className="h-px bg-slate-100 my-4"></div>
+
+      {/* Row 2: The "Status & Action" */}
+      <div className="flex items-center justify-between">
+        <div>
+          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
+            settlement.status === 'closed'
+              ? 'bg-emerald-100 text-emerald-800'
+              : 'bg-amber-100 text-amber-800'
+          }`}>
+            {settlement.status === 'closed' ? 'Settled' : 'Outstanding'}
+          </span>
+        </div>
+
+        {/* Action Button - Only show for open settlements */}
+        {settlement.status === 'open' && (
+          <button
+            onClick={handleMarkAsPaid}
+            disabled={isUpdating}
+            className="flex-shrink-0 w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center hover:bg-slate-900 transition-all focus:outline-none focus:ring-2 focus:ring-slate-800 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isUpdating ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Check className="w-5 h-5" strokeWidth={3} />
+            )}
+          </button>
+        )}
+      </div>
+    </div>
   );
 }

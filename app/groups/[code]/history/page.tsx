@@ -369,39 +369,46 @@ export default function GroupHistoryPage() {
           {/* Net Settlements Tab */}
           <TabsContent value="settlements" className="space-y-3 sm:space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <h2 className="text-lg sm:text-xl font-semibold">
+              <h2 className="text-lg sm:text-xl font-semibold text-slate-900">
                 Net Settlements
                 {filters.selectedMember && (
-                  <span className="text-sm font-normal text-muted-foreground ml-2">
+                  <span className="text-sm font-normal text-slate-600 ml-2">
                     for {filters.selectedMember}
                   </span>
                 )}
               </h2>
-              <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                <Button
-                  variant={filters.settlementStatus === 'all' ? 'default' : 'outline'}
-                  size="sm"
+              {/* Modern Segmented Control Filter */}
+              <div className="flex bg-slate-200/75 rounded-full p-1 space-x-1">
+                <button
                   onClick={() => setFilters({ ...filters, settlementStatus: 'all' })}
-                  className="whitespace-nowrap"
+                  className={`flex-1 px-4 py-2 text-sm font-semibold rounded-full focus:outline-none transition-all ${
+                    filters.settlementStatus === 'all'
+                      ? 'text-slate-900 bg-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
                 >
                   All
-                </Button>
-                <Button
-                  variant={filters.settlementStatus === 'open' ? 'default' : 'outline'}
-                  size="sm"
+                </button>
+                <button
                   onClick={() => setFilters({ ...filters, settlementStatus: 'open' })}
-                  className="whitespace-nowrap"
+                  className={`flex-1 px-4 py-2 text-sm font-semibold rounded-full focus:outline-none transition-all ${
+                    filters.settlementStatus === 'open'
+                      ? 'text-slate-900 bg-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
                 >
                   Open
-                </Button>
-                <Button
-                  variant={filters.settlementStatus === 'closed' ? 'default' : 'outline'}
-                  size="sm"
+                </button>
+                <button
                   onClick={() => setFilters({ ...filters, settlementStatus: 'closed' })}
-                  className="whitespace-nowrap"
+                  className={`flex-1 px-4 py-2 text-sm font-semibold rounded-full focus:outline-none transition-all ${
+                    filters.settlementStatus === 'closed'
+                      ? 'text-slate-900 bg-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
                 >
                   Settled
-                </Button>
+                </button>
               </div>
             </div>
 
