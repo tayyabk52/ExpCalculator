@@ -79,3 +79,69 @@ body {
 .expense-card-expanded .expense-card-chevron {
   transform: rotate(180deg);
 }
+
+/* Modal Animations */
+.modal-backdrop {
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+  pointer-events: none;
+}
+
+.modal-backdrop.modal-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-panel {
+  /* Mobile-first: start slid down */
+  transform: translateY(100%);
+  transition: transform 0.3s ease-in-out;
+}
+
+.modal-visible .modal-panel {
+  /* Mobile: slide up */
+  transform: translateY(0);
+}
+
+/* Desktop overrides: fade/scale instead of slide */
+@media (min-width: 640px) {
+  .modal-panel {
+    transform: scale(0.95);
+    opacity: 0;
+    transition: transform 0.2s ease-in-out, opacity 0.2s ease-in-out;
+  }
+  
+  .modal-visible .modal-panel {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Staggered Content Animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Hide animated content by default */
+.animated-content {
+  opacity: 0;
+}
+
+/* When modal is visible, run the animation */
+.modal-visible .animated-content {
+  animation: fadeInUp 0.5s ease-out forwards;
+}
+
+/* Stagger the delays */
+.modal-visible .delay-100 { animation-delay: 0.1s; }
+.modal-visible .delay-200 { animation-delay: 0.2s; }
+.modal-visible .delay-300 { animation-delay: 0.3s; }
+.modal-visible .delay-400 { animation-delay: 0.4s; }
+.modal-visible .delay-500 { animation-delay: 0.5s; }
