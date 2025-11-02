@@ -94,8 +94,8 @@ export function exportGroupStatement(data: GroupStatementData): void {
   doc.setFont('helvetica', 'normal');
 
   const totalExpenseAmount = expenses.reduce((sum, exp) => sum + exp.total_amount, 0);
-  const openSettlements = netSettlements.filter(s => !s.is_paid).length;
-  const closedSettlements = netSettlements.filter(s => s.is_paid).length;
+  const openSettlements = netSettlements.filter(s => s.status === 'open').length;
+  const closedSettlements = netSettlements.filter(s => s.status === 'closed').length;
   const totalMembers = memberBalances.length;
 
   const summaryData = [
