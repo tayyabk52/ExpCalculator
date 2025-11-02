@@ -14,56 +14,39 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] overflow-x-hidden">
-      {/* Hero Section with Gradient Background */}
-      <section className="relative px-4 pt-16 pb-20 sm:pt-24 sm:pb-28 md:pt-32 md:pb-36">
-        {/* Subtle animated background gradient */}
-        <div className="absolute inset-0 -z-10 bg-gradient-to-br from-primary/5 via-transparent to-emerald-500/5" />
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_30%_20%,rgba(120,119,198,0.05),transparent_50%)]" />
-        
-        <div className="container mx-auto max-w-6xl">
-          <div className={`text-center transition-all duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            {/* Floating icon with subtle animation */}
-            <div className="mb-6 sm:mb-8 flex justify-center">
-              <div className="relative group">
-                <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary/20 to-emerald-500/20 blur-xl group-hover:blur-2xl transition-all duration-500" />
-                <div className="relative rounded-3xl bg-gradient-to-br from-primary/10 to-emerald-500/10 p-5 sm:p-6 backdrop-blur-sm border border-primary/10">
-                  <Calculator className="h-12 w-12 sm:h-16 sm:w-16 text-primary" />
-                </div>
-              </div>
+    <div className="min-h-[calc(100vh-4rem)]">
+      {/* Hero Section - Simplified */}
+      <section className="px-4 py-12 sm:py-16">
+        <div className="container mx-auto max-w-4xl text-center">
+          {/* Icon */}
+          <div className="mb-6 flex justify-center">
+            <div className="rounded-2xl bg-emerald-100 p-4">
+              <Calculator className="h-10 w-10 text-emerald-600" />
             </div>
-
-            {/* Main heading with better spacing */}
-            <h1 className="mb-4 sm:mb-6 text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight">
-              <span className="bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
-                Split bills
-              </span>
-              <br />
-              <span className="bg-gradient-to-br from-primary via-primary to-emerald-600 bg-clip-text text-transparent">
-                the smart way
-              </span>
-            </h1>
-
-            <p className="mx-auto max-w-2xl text-base sm:text-lg md:text-xl text-muted-foreground/90 leading-relaxed mb-8 sm:mb-10 px-4">
-              No more awkward money conversations. Calculate, split, and settle expenses with friends in seconds.
-            </p>
-
-            {/* CTA Button */}
-            <Link href="/expense-calculator">
-              <Button 
-                size="lg" 
-                className="h-12 sm:h-14 px-8 sm:px-10 text-base sm:text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-300 group"
-              >
-                Try it free
-                <Sparkles className="ml-2 h-5 w-5 group-hover:rotate-12 transition-transform duration-300" />
-              </Button>
-            </Link>
-
-            {/* Social proof */}
-            <p className="mt-6 text-sm text-muted-foreground/60">
-              No sign-up required • Works offline • 100% free
-            </p>
           </div>
+
+          {/* Heading */}
+          <h1 className="mb-4 text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900">
+            Split bills the smart way
+          </h1>
+
+          {/* Description */}
+          <p className="mx-auto max-w-xl text-base sm:text-lg text-slate-600 mb-6">
+            Calculate, split, and settle expenses with friends in seconds.
+          </p>
+
+          {/* CTA Button */}
+          <Link href="/expense-calculator">
+            <Button size="lg" className="rounded-full">
+              Try it free
+              <Sparkles className="ml-2 h-4 w-4" />
+            </Button>
+          </Link>
+
+          {/* Social proof */}
+          <p className="mt-4 text-sm text-slate-500">
+            No sign-up • 100% free
+          </p>
         </div>
       </section>
 
