@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { getAllGroups, formatGroupCode } from '@/lib/utils/group-utils';
 import type { Group } from '@/lib/types/group';
 import { format } from 'date-fns';
+import PinGroupButton from '@/components/group/PinGroupButton';
 
 export default function AllGroupsList() {
   const [isOpen, setIsOpen] = useState(false);
@@ -153,6 +154,11 @@ export default function AllGroupsList() {
 
                         {/* Actions */}
                         <div className="flex flex-col gap-2">
+                          <PinGroupButton 
+                            groupCode={group.code}
+                            groupName={group.name || 'Unnamed Group'}
+                            variant="icon"
+                          />
                           <button
                             onClick={() => copyToClipboard(group.code)}
                             className={`p-2 rounded-lg transition-all ${

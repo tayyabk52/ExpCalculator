@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Calculator, Receipt, TrendingUp, Sparkles, Users, FileText, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
+import QuickAccessGroups from '@/components/home/QuickAccessGroups';
 
 export default function Home() {
   const [mounted, setMounted] = useState(false);
@@ -69,6 +70,9 @@ export default function Home() {
       {/* Main Feature Cards */}
       <section className="px-4 pb-20 sm:pb-28">
         <div className="container mx-auto max-w-4xl space-y-6 sm:space-y-8">
+          {/* Quick Access Groups */}
+          <QuickAccessGroups />
+
           {/* Expense Splitter Card */}
           <Link href="/expense-calculator" className="block group">
             <div className="relative overflow-hidden rounded-3xl sm:rounded-[2rem] bg-gradient-to-br from-card to-card/80 border border-border/50 hover:border-primary/30 transition-all duration-500 shadow-sm hover:shadow-xl">

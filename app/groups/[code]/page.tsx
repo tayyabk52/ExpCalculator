@@ -17,6 +17,7 @@ import SplitMethodSelector from '@/components/expense/SplitMethodSelector';
 import ResultsDisplay from '@/components/expense/ResultsDisplay';
 import SaveToGroupButton from '@/components/group/SaveToGroupButton';
 import AIExpenseInput from '@/components/expense/AIExpenseInput';
+import PinGroupButton from '@/components/group/PinGroupButton';
 import { exportExpenseToPDF } from '@/lib/utils/pdf-exporter';
 import { getGroupByCode, getGroupMembers, formatGroupCode } from '@/lib/utils/group-utils';
 import type { Group, GroupMember } from '@/lib/types/group';
@@ -208,6 +209,11 @@ export default function GroupCalculatorPage() {
               </button>
               
               <div className="flex items-center gap-2">
+                <PinGroupButton 
+                  groupCode={code}
+                  groupName={group?.name || 'Group Calculator'}
+                  variant="icon"
+                />
                 <button
                   onClick={handleExportPDF}
                   className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors"
