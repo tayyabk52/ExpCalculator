@@ -13,6 +13,7 @@ export default function Navbar() {
   const navItems = [
     { name: 'Home', href: '/' },
     { name: 'Expense Calculator', href: '/expense-calculator' },
+    { name: 'Groups', href: '/groups' },
   ];
 
   const isActive = (href: string) => pathname === href;

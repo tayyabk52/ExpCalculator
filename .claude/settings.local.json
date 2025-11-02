@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install @supabase/supabase-js)",
+      "Bash(npm install date-fns)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
