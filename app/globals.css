@@ -80,6 +80,12 @@ body {
   transform: rotate(180deg);
 }
 
+/* Member Card Staggered Animation */
+.member-card {
+  animation: fadeInUp 0.5s ease-out forwards;
+  opacity: 0;
+}
+
 /* Modal Animations */
 .modal-backdrop {
   opacity: 0;
