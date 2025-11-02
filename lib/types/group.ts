@@ -36,6 +36,7 @@ export type GroupSettlement = {
   to_member: string;
   amount: number;
   status: 'open' | 'closed';
+  reconciliation_method: 'manual_payment' | 'auto_offset' | null;
   created_at: string;
   closed_at: string | null;
 };
@@ -85,6 +86,13 @@ export type NetSettlement = {
   amount: number;
   status: 'open' | 'closed';
   relatedExpenses: string[]; // Expense IDs that contribute to this net settlement
+};
+
+// Helper type for reconciliation tracking
+export type ReconciliationMethod = 'manual_payment' | 'auto_offset';
+
+export type SettlementWithReconciliation = GroupSettlement & {
+  reconciliation_method: ReconciliationMethod;
 };
 
 export type MemberBalance = {

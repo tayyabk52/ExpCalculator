@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Loader2, RefreshCw, Filter, FileDown, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,8 @@ import ExpenseCard from '@/components/group/ExpenseCard';
 import NetSettlementCard from '@/components/group/NetSettlementCard';
 import MemberBalanceSummary from '@/components/group/MemberBalanceSummary';
 import ExpenseDetailModal from '@/components/group/ExpenseDetailModal';
+import ExportGroupStatementButton from '@/components/group/ExportGroupStatementButton';
+import HistoryFilters, { type HistoryFiltersState } from '@/components/group/HistoryFilters';
 import type { Group, GroupExpense, GroupSettlement, NetSettlement, MemberBalance } from '@/lib/types/group';
 import type { Currency } from '@/lib/types/expense';
 
@@ -38,6 +40,17 @@ export default function GroupHistoryPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedExpense, setSelectedExpense] = useState<GroupExpense | null>(null);
   const [filter, setFilter] = useState<'all' | 'open' | 'closed'>('all');
+  
+  // Filter state
+  const [filters, setFilters] = useState<HistoryFiltersState>({
+    dateFrom: '',
+    dateTo: '',
+    selectedMember: '',
+    minAmount: '',
+    maxAmount: '',
+    settlementStatus: 'all',
+    sortBy: 'date-desc',
+  });
 
   // Detect currency (use most common currency from expenses)
   const currency: Currency = expenses.length > 0
@@ -93,21 +106,115 @@ export default function GroupHistoryPage() {
     loadData();
   }, [code]);
 
-  // Filter settlements
-  const filteredSettlements = filter === 'all'
-    ? netSettlements
-    : netSettlements.filter(s => s.status === filter);
+  // Get all unique members
+  const allMembers = useMemo(() => {
+    const memberSet = new Set<string>();
+    expenses.forEach(exp => {
+      exp.expense_data.people.forEach(person => memberSet.add(person.name));
+    });
+    return Array.from(memberSet).sort();
+  }, [expenses]);
+
+  // Apply filters to expenses
+  const filteredExpenses = useMemo(() => {
+    let filtered = [...expenses];
+
+    // Date filter
+    if (filters.dateFrom) {
+      const fromDate = new Date(filters.dateFrom);
+      filtered = filtered.filter(exp => new Date(exp.created_at) >= fromDate);
+    }
+    if (filters.dateTo) {
+      const toDate = new Date(filters.dateTo);
+      toDate.setHours(23, 59, 59, 999); // End of day
+      filtered = filtered.filter(exp => new Date(exp.created_at) <= toDate);
+    }
+
+    // Member filter
+    if (filters.selectedMember) {
+      filtered = filtered.filter(exp =>
+        exp.expense_data.people.some(person => person.name === filters.selectedMember)
+      );
+    }
+
+    // Amount filter
+    if (filters.minAmount) {
+      const min = parseFloat(filters.minAmount);
+      filtered = filtered.filter(exp => exp.total_amount >= min);
+    }
+    if (filters.maxAmount) {
+      const max = parseFloat(filters.maxAmount);
+      filtered = filtered.filter(exp => exp.total_amount <= max);
+    }
+
+    // Sort
+    filtered.sort((a, b) => {
+      switch (filters.sortBy) {
+        case 'date-desc':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case 'date-asc':
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case 'amount-desc':
+          return b.total_amount - a.total_amount;
+        case 'amount-asc':
+          return a.total_amount - b.total_amount;
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  }, [expenses, filters]);
+
+  // Apply filters to settlements
+  const filteredSettlements = useMemo(() => {
+    let filtered = [...netSettlements];
+
+    // Status filter (from filters state, not the old filter state)
+    if (filters.settlementStatus !== 'all') {
+      filtered = filtered.filter(s => s.status === filters.settlementStatus);
+    }
+
+    // Member filter
+    if (filters.selectedMember) {
+      filtered = filtered.filter(s =>
+        s.from === filters.selectedMember || s.to === filters.selectedMember
+      );
+    }
+
+    // Amount filter
+    if (filters.minAmount) {
+      const min = parseFloat(filters.minAmount);
+      filtered = filtered.filter(s => s.amount >= min);
+    }
+    if (filters.maxAmount) {
+      const max = parseFloat(filters.maxAmount);
+      filtered = filtered.filter(s => s.amount <= max);
+    }
+
+    return filtered;
+  }, [netSettlements, filters]);
+
+  // Apply filters to member balances
+  const filteredMemberBalances = useMemo(() => {
+    if (!filters.selectedMember) return memberBalances;
+    return memberBalances.filter(mb => mb.name === filters.selectedMember);
+  }, [memberBalances, filters.selectedMember]);
 
   // Get settlements for an expense
   const getSettlementsForExpense = (expenseId: string) => {
     return settlements.filter(s => s.expense_id === expenseId);
   };
 
-  // Stats
-  const totalExpenses = expenses.length;
-  const totalAmount = expenses.reduce((sum, exp) => sum + exp.total_amount, 0);
-  const openSettlementsCount = netSettlements.filter(s => s.status === 'open').length;
-  const closedSettlementsCount = netSettlements.filter(s => s.status === 'closed').length;
+  // Stats (based on ALL settlements, not filtered net settlements)
+  const totalExpenses = filteredExpenses.length;
+  const totalAmount = filteredExpenses.reduce((sum, exp) => sum + exp.total_amount, 0);
+  
+  // Count from actual settlements table for accurate reconciliation tracking
+  const openSettlementsCount = settlements.filter(s => s.status === 'open').length;
+  const manuallyPaidCount = settlements.filter(s => s.status === 'closed' && s.reconciliation_method === 'manual_payment').length;
+  const autoSettledCount = settlements.filter(s => s.status === 'closed' && s.reconciliation_method === 'auto_offset').length;
+  const closedSettlementsCount = manuallyPaidCount + autoSettledCount;
 
   // Loading state
   if (isLoading) {
@@ -138,7 +245,7 @@ export default function GroupHistoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+    <div className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-6xl p-3 sm:p-4 md:p-6 lg:p-8">
         {/* Header */}
         <div className="mb-4 sm:mb-6">
@@ -169,48 +276,78 @@ export default function GroupHistoryPage() {
                 </p>
               </div>
 
-              <Button
-                onClick={() => loadData(false)}
-                disabled={isRefreshing}
-                variant="outline"
-                className="gap-2 flex-shrink-0"
-                size="sm"
-              >
-                {isRefreshing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="hidden sm:inline">Refreshing...</span>
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="h-4 w-4" />
-                    <span className="hidden sm:inline">Refresh</span>
-                  </>
-                )}
-              </Button>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <HistoryFilters
+                  filters={filters}
+                  onFiltersChange={setFilters}
+                  members={allMembers}
+                  currency={currency}
+                />
+                <ExportGroupStatementButton
+                  group={group}
+                  expenses={expenses}
+                  netSettlements={netSettlements}
+                  memberBalances={memberBalances}
+                  currency={currency}
+                  size="sm"
+                />
+                <Button
+                  onClick={() => loadData(false)}
+                  disabled={isRefreshing}
+                  variant="outline"
+                  className="gap-2"
+                  size="sm"
+                >
+                  {isRefreshing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="hidden sm:inline">Refreshing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4" />
+                      <span className="hidden sm:inline">Refresh</span>
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Stats Cards */}
+        {/* Stats Cards - Clean Slate Design */}
         <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 mb-4 sm:mb-6">
-          <div className="p-3 sm:p-4 rounded-lg border bg-card shadow-sm hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm text-muted-foreground mb-1">Total Expenses</div>
-            <div className="text-xl sm:text-2xl font-bold">{totalExpenses}</div>
+          <div className="p-3 sm:p-4 rounded-xl border border-slate-100 bg-white shadow-sm hover:shadow-md transition-shadow">
+            <div className="text-xs sm:text-sm text-slate-500 mb-1">Total Expenses</div>
+            <div className="text-xl sm:text-2xl font-bold text-slate-900">{totalExpenses}</div>
           </div>
-          <div className="p-3 sm:p-4 rounded-lg border bg-card shadow-sm hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm text-muted-foreground mb-1">Total Amount</div>
-            <div className="text-xl sm:text-2xl font-bold truncate">
+          <div className="p-3 sm:p-4 rounded-xl border border-slate-100 bg-white shadow-sm hover:shadow-md transition-shadow">
+            <div className="text-xs sm:text-sm text-slate-500 mb-1">Total Amount</div>
+            <div className="text-base sm:text-xl font-bold text-slate-900 truncate">
               {currency} {totalAmount.toFixed(2)}
             </div>
           </div>
-          <div className="p-3 sm:p-4 rounded-lg border bg-card shadow-sm hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm text-muted-foreground mb-1">Open</div>
-            <div className="text-xl sm:text-2xl font-bold text-orange-600">{openSettlementsCount}</div>
+          <div className="p-3 sm:p-4 rounded-xl border border-slate-100 bg-white shadow-sm hover:shadow-md transition-shadow">
+            <div className="text-xs sm:text-sm text-slate-500 mb-1">Open</div>
+            <div className="text-xl sm:text-2xl font-bold text-slate-700">{openSettlementsCount}</div>
           </div>
-          <div className="p-3 sm:p-4 rounded-lg border bg-card shadow-sm hover:shadow-md transition-shadow">
-            <div className="text-xs sm:text-sm text-muted-foreground mb-1">Settled</div>
-            <div className="text-xl sm:text-2xl font-bold text-green-600">{closedSettlementsCount}</div>
+          <div className="p-3 sm:p-4 rounded-xl border border-slate-100 bg-white shadow-sm hover:shadow-md transition-shadow">
+            <div className="text-xs sm:text-sm text-slate-500 mb-1">Settled</div>
+            <div className="text-xl sm:text-2xl font-bold text-emerald-600">{closedSettlementsCount}</div>
+            {(manuallyPaidCount > 0 || autoSettledCount > 0) && (
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {manuallyPaidCount > 0 && (
+                  <span className="text-[10px] sm:text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-medium">
+                    ✓ {manuallyPaidCount}
+                  </span>
+                )}
+                {autoSettledCount > 0 && (
+                  <span className="text-[10px] sm:text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">
+                    ⚖️ {autoSettledCount}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -232,28 +369,35 @@ export default function GroupHistoryPage() {
           {/* Net Settlements Tab */}
           <TabsContent value="settlements" className="space-y-3 sm:space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <h2 className="text-lg sm:text-xl font-semibold">Net Settlements</h2>
+              <h2 className="text-lg sm:text-xl font-semibold">
+                Net Settlements
+                {filters.selectedMember && (
+                  <span className="text-sm font-normal text-muted-foreground ml-2">
+                    for {filters.selectedMember}
+                  </span>
+                )}
+              </h2>
               <div className="flex items-center gap-2 overflow-x-auto pb-1">
                 <Button
-                  variant={filter === 'all' ? 'default' : 'outline'}
+                  variant={filters.settlementStatus === 'all' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setFilter('all')}
+                  onClick={() => setFilters({ ...filters, settlementStatus: 'all' })}
                   className="whitespace-nowrap"
                 >
                   All
                 </Button>
                 <Button
-                  variant={filter === 'open' ? 'default' : 'outline'}
+                  variant={filters.settlementStatus === 'open' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setFilter('open')}
+                  onClick={() => setFilters({ ...filters, settlementStatus: 'open' })}
                   className="whitespace-nowrap"
                 >
                   Open
                 </Button>
                 <Button
-                  variant={filter === 'closed' ? 'default' : 'outline'}
+                  variant={filters.settlementStatus === 'closed' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setFilter('closed')}
+                  onClick={() => setFilters({ ...filters, settlementStatus: 'closed' })}
                   className="whitespace-nowrap"
                 >
                   Settled
@@ -288,11 +432,16 @@ export default function GroupHistoryPage() {
           <TabsContent value="expenses" className="space-y-3 sm:space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg sm:text-xl font-semibold">
-                All Expenses ({expenses.length})
+                All Expenses ({filteredExpenses.length})
+                {filters.selectedMember && (
+                  <span className="text-sm font-normal text-muted-foreground ml-2">
+                    involving {filters.selectedMember}
+                  </span>
+                )}
               </h2>
             </div>
 
-            {expenses.length === 0 ? (
+            {filteredExpenses.length === 0 ? (
               <div className="p-8 text-center border rounded-lg bg-muted/20">
                 <p className="text-muted-foreground">
                   No expenses yet. Go to the calculator to add your first expense!
@@ -306,7 +455,7 @@ export default function GroupHistoryPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {expenses.map(expense => (
+                {filteredExpenses.map(expense => (
                   <ExpenseCard
                     key={expense.id}
                     expense={expense}
@@ -320,8 +469,15 @@ export default function GroupHistoryPage() {
 
           {/* Members Tab */}
           <TabsContent value="members" className="space-y-3 sm:space-y-4">
-            <h2 className="text-lg sm:text-xl font-semibold">Member Balances</h2>
-            <MemberBalanceSummary balances={memberBalances} currency={currency} />
+            <h2 className="text-lg sm:text-xl font-semibold">
+              Member Balances
+              {filters.selectedMember && (
+                <span className="text-sm font-normal text-muted-foreground ml-2">
+                  for {filters.selectedMember}
+                </span>
+              )}
+            </h2>
+            <MemberBalanceSummary balances={filteredMemberBalances} currency={currency} />
           </TabsContent>
         </Tabs>
       </div>

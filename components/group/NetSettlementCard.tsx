@@ -33,6 +33,7 @@ export default function NetSettlementCard({
         .update({
           status: 'closed',
           closed_at: new Date().toISOString(),
+          reconciliation_method: 'manual_payment',
         })
         .in('expense_id', settlement.relatedExpenses)
         .eq('from_member', settlement.from)
@@ -58,6 +59,7 @@ export default function NetSettlementCard({
         .update({
           status: 'open',
           closed_at: null,
+          reconciliation_method: null,
         })
         .in('expense_id', settlement.relatedExpenses)
         .eq('from_member', settlement.from)

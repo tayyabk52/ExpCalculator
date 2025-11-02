@@ -196,11 +196,15 @@ export async function ensureGroupMembers(
 /**
  * Calculates net settlements from all open settlements in a group
  * This implements the auto-netting feature
+ * Also automatically reconciles offsetting settlements before calculating net
  */
 export async function calculateNetSettlements(
   groupId: string
 ): Promise<NetSettlement[]> {
-  // Fetch all open settlements
+  // First, run auto-reconciliation to close offsetting settlements
+  await autoReconcileOffsetSettlements(groupId);
+
+  // Fetch all open settlements (after reconciliation)
   const { data: settlements, error } = await supabase
     .from('group_settlements')
     .select('*')
@@ -308,7 +312,8 @@ export async function calculateMemberBalances(
 export async function markSettlementsAsPaid(
   expenseIds: string[],
   fromMember: string,
-  toMember: string
+  toMember: string,
+  reconciliationMethod: 'manual_payment' | 'auto_offset' = 'manual_payment'
 ): Promise<boolean> {
   try {
     const { error } = await supabase
@@ -316,6 +321,7 @@ export async function markSettlementsAsPaid(
       .update({
         status: 'closed',
         closed_at: new Date().toISOString(),
+        reconciliation_method: reconciliationMethod,
       })
       .in('expense_id', expenseIds)
       .eq('from_member', fromMember)
@@ -326,6 +332,148 @@ export async function markSettlementsAsPaid(
   } catch (error) {
     console.error('Error marking settlements as paid:', error);
     return false;
+  }
+}
+
+/**
+ * Auto-reconciles offsetting settlements between members
+ * This detects when debts cancel out (A owes B, B owes A) and automatically
+ * marks them as reconciled via offset
+ *
+ * Algorithm:
+ * 1. Group all open settlements by person-pairs
+ * 2. Calculate net debt for each pair
+ * 3. If net ≈ 0: Close ALL settlements between them (fully offset)
+ * 4. If net > 0: Close all settlements in smaller direction (partial offset)
+ *
+ * Edge cases handled:
+ * - Circular debts (A→B, B→C, C→A)
+ * - Multiple expenses same direction
+ * - Floating point precision (uses 0.01 threshold)
+ * - Partial offsets (FIFO ordering)
+ */
+export async function autoReconcileOffsetSettlements(groupId: string): Promise<{
+  reconciledCount: number;
+  success: boolean;
+}> {
+  try {
+    // Fetch all open settlements for this group
+    const { data: openSettlements, error: fetchError } = await supabase
+      .from('group_settlements')
+      .select('*')
+      .eq('group_id', groupId)
+      .eq('status', 'open')
+      .order('created_at', { ascending: true }); // FIFO ordering
+
+    if (fetchError) throw fetchError;
+    if (!openSettlements || openSettlements.length === 0) {
+      return { reconciledCount: 0, success: true };
+    }
+
+    // Build a map of debts grouped by person-pairs (bidirectional)
+    type PairData = {
+      forward: GroupSettlement[];  // Person A → Person B
+      backward: GroupSettlement[]; // Person B → Person A
+      forwardTotal: number;
+      backwardTotal: number;
+    };
+
+    const pairMap: Record<string, PairData> = {};
+
+    openSettlements.forEach(settlement => {
+      // Create a canonical key (alphabetically sorted) for this pair
+      const [person1, person2] = [settlement.from_member, settlement.to_member].sort();
+      const key = `${person1}|${person2}`;
+
+      if (!pairMap[key]) {
+        pairMap[key] = {
+          forward: [],
+          backward: [],
+          forwardTotal: 0,
+          backwardTotal: 0,
+        };
+      }
+
+      // Determine direction and add to appropriate array
+      if (settlement.from_member === person1) {
+        // person1 → person2
+        pairMap[key].forward.push(settlement);
+        pairMap[key].forwardTotal += settlement.amount;
+      } else {
+        // person2 → person1
+        pairMap[key].backward.push(settlement);
+        pairMap[key].backwardTotal += settlement.amount;
+      }
+    });
+
+    // Process each pair and reconcile offsetting settlements
+    let totalReconciled = 0;
+
+    for (const [key, data] of Object.entries(pairMap)) {
+      const { forward, backward, forwardTotal, backwardTotal } = data;
+      const netAmount = clamp2(forwardTotal - backwardTotal);
+
+      // Threshold for considering amounts "equal" (handles floating point issues)
+      const ZERO_THRESHOLD = 0.01;
+
+      if (Math.abs(netAmount) < ZERO_THRESHOLD) {
+        // ===== FULLY OFFSET: Net ≈ 0 =====
+        // Close ALL settlements between this pair
+        const allSettlements = [...forward, ...backward];
+        const settlementIds = allSettlements.map(s => s.id);
+
+        if (settlementIds.length > 0) {
+          const { error } = await supabase
+            .from('group_settlements')
+            .update({
+              status: 'closed',
+              closed_at: new Date().toISOString(),
+              reconciliation_method: 'auto_offset',
+            })
+            .in('id', settlementIds);
+
+          if (!error) {
+            totalReconciled += settlementIds.length;
+          }
+        }
+      } else {
+        // ===== PARTIAL OFFSET: Net > 0 =====
+        // Close all settlements in the SMALLER direction
+        // The larger direction remains open (representing the net debt)
+
+        let settlementsToClose: GroupSettlement[] = [];
+
+        if (netAmount > 0) {
+          // Forward > Backward: Close all backward settlements (fully offset)
+          settlementsToClose = backward;
+        } else {
+          // Backward > Forward: Close all forward settlements (fully offset)
+          settlementsToClose = forward;
+        }
+
+        if (settlementsToClose.length > 0) {
+          const settlementIds = settlementsToClose.map(s => s.id);
+
+          const { error } = await supabase
+            .from('group_settlements')
+            .update({
+              status: 'closed',
+              closed_at: new Date().toISOString(),
+              reconciliation_method: 'auto_offset',
+            })
+            .in('id', settlementIds);
+
+          if (!error) {
+            totalReconciled += settlementIds.length;
+          }
+        }
+      }
+    }
+
+    return { reconciledCount: totalReconciled, success: true };
+  } catch (error) {
+    console.error('Error in auto-reconciliation:', error);
+    return { reconciledCount: 0, success: false };
   }
 }
 
