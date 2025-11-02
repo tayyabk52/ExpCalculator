@@ -172,10 +172,10 @@ export default function GroupCalculatorPage() {
 
   return (
     <TooltipProvider delayDuration={0} skipDelayDuration={0}>
-      <div className="w-full min-h-screen bg-slate-50">
+      <div className="w-full min-h-screen bg-slate-50 overflow-x-hidden">
         {/* Modern Header - Mobile First */}
         <div className="bg-white border-b border-slate-200">
-          <div className="mx-auto max-w-7xl">
+          <div className="mx-auto max-w-7xl w-full">
             {/* Top Navigation Bar */}
             <div className="flex items-center justify-between px-4 py-3 sm:py-4">
               <button
@@ -237,10 +237,10 @@ export default function GroupCalculatorPage() {
         </div>
 
         {/* Main Content - Modern Card Layout */}
-        <div className="mx-auto max-w-7xl px-4 py-4 sm:py-5">
-          <div className="grid gap-4 lg:gap-5 lg:grid-cols-2">
+        <div className="mx-auto max-w-7xl w-full px-4 py-4 sm:py-5 overflow-x-hidden">
+          <div className="grid gap-4 lg:gap-5 lg:grid-cols-2 w-full max-w-full">
             {/* Left Column - Input Sections */}
-            <div className="space-y-4 lg:space-y-5">
+            <div className="space-y-4 lg:space-y-5 min-w-0 w-full max-w-full overflow-hidden">
               <PeopleManager people={people} setPeople={setPeople} />
 
               <BillAmountSection
@@ -267,7 +267,7 @@ export default function GroupCalculatorPage() {
             </div>
 
             {/* Right Column - Split & Results */}
-            <div className="space-y-4 lg:space-y-5">
+            <div className="space-y-4 lg:space-y-5 min-w-0 w-full max-w-full overflow-hidden">
               <SplitMethodSelector
                 method={method}
                 setMethod={setMethod}

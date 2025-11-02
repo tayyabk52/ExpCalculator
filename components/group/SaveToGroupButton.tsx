@@ -167,7 +167,7 @@ export default function SaveToGroupButton({
       <DialogTrigger asChild>
         <Button
           disabled={disabled || activePeople.length === 0 || total <= 0}
-          className="w-full gap-2"
+          className="w-full gap-2 min-w-0"
           size="lg"
         >
           <Save className="h-4 w-4" />

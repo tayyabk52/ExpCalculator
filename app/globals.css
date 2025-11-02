@@ -80,6 +80,38 @@ body {
   transform: rotate(180deg);
 }
 
+/* Calculator Section Expand/Collapse Animation (Mobile) */
+@media (max-width: 1023px) {
+  .calc-section-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+  }
+
+  .calc-section-expanded .calc-section-content {
+    max-height: 2000px; /* Large enough for any section */
+  }
+
+  .calc-section-chevron {
+    transition: transform 0.3s ease-out;
+  }
+
+  .calc-section-expanded .calc-section-chevron {
+    transform: rotate(180deg);
+  }
+}
+
+/* Desktop: Always show content */
+@media (min-width: 1024px) {
+  .calc-section-content {
+    max-height: none !important;
+  }
+  
+  .calc-section-chevron {
+    display: none;
+  }
+}
+
 /* Member Card Staggered Animation */
 .member-card {
   animation: fadeInUp 0.5s ease-out forwards;
