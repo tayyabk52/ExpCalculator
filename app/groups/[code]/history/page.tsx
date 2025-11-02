@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Loader2, RefreshCw, Filter, FileDown, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Loader2, RefreshCw, Filter, FileDown, TrendingUp, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -309,6 +309,15 @@ export default function GroupHistoryPage() {
               </div>
             </div>
             <p className="text-sm text-slate-500 mt-2">View all expenses and settlements</p>
+            
+            {/* Add New Expense Button */}
+            <button
+              onClick={() => router.push(`/groups/${code}`)}
+              className="mt-4 w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 group"
+            >
+              <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform duration-200" />
+              <span>Add New Expense</span>
+            </button>
           </div>
         </div>
 

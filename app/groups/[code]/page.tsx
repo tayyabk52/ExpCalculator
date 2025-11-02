@@ -172,152 +172,144 @@ export default function GroupCalculatorPage() {
 
   return (
     <TooltipProvider delayDuration={0} skipDelayDuration={0}>
-      <div className="w-full overflow-x-hidden bg-gradient-to-b from-background to-muted/10">
-        <div className="mx-auto max-w-7xl p-3 sm:p-4 md:p-6 lg:p-8">
-          {/* Header */}
-          <div className="mb-4 sm:mb-6 md:mb-8">
-            <Button
-              variant="ghost"
-              onClick={() => router.push('/groups')}
-              className="mb-3 sm:mb-4 gap-2 -ml-2"
-              size="sm"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span className="hidden xs:inline">Back to Groups</span>
-              <span className="xs:hidden">Back</span>
-            </Button>
+      <div className="w-full min-h-screen bg-slate-50">
+        {/* Modern Header - Mobile First */}
+        <div className="bg-white border-b border-slate-200">
+          <div className="mx-auto max-w-7xl">
+            {/* Top Navigation Bar */}
+            <div className="flex items-center justify-between px-4 py-3 sm:py-4">
+              <button
+                onClick={() => router.push('/groups')}
+                className="p-2 rounded-full hover:bg-slate-100 transition-colors"
+              >
+                <ArrowLeft className="h-5 w-5 text-slate-700" />
+              </button>
+              
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleExportPDF}
+                  className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors"
+                  title="Export to PDF"
+                >
+                  <FileDown className="h-5 w-5 text-slate-700" />
+                </button>
+                <button
+                  onClick={() => router.push(`/groups/${code}/history`)}
+                  className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors"
+                  title="View History"
+                >
+                  <History className="h-5 w-5 text-slate-700" />
+                </button>
+              </div>
+            </div>
 
-            <div className="space-y-3 sm:space-y-4">
-              <div className="flex items-start justify-between gap-3">
+            {/* Group Info Section */}
+            <div className="px-4 pb-4 sm:pb-5">
+              <div className="flex items-start gap-3 mb-3">
+                <div className="flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-sm">
+                  <SplitSquareHorizontal className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
+                </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 sm:gap-3 mb-2">
-                    <div className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl bg-primary/10 flex-shrink-0">
-                      <SplitSquareHorizontal className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                        <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold tracking-tight">
-                          {group.name || 'Group Calculator'}
-                        </h1>
-                        <Badge variant="secondary" className="font-mono text-xs sm:text-sm">
-                          {formatGroupCode(group.code)}
-                        </Badge>
-                      </div>
-                      <p className="text-xs sm:text-sm md:text-base text-muted-foreground mt-0.5">
-                        Split bills with your group
-                      </p>
+                  <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                    {group.name || 'Group Calculator'}
+                  </h1>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-xs font-mono font-medium text-slate-700">
+                      {formatGroupCode(group.code)}
+                    </span>
+                    <div className="flex items-center gap-1 text-xs text-slate-500">
+                      <Users className="h-3.5 w-3.5" />
+                      <span>{groupMembers.length} members</span>
                     </div>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-                  <Button
-                    onClick={handleExportPDF}
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5"
-                  >
-                    <FileDown className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Export</span>
-                  </Button>
-                  <Button
-                    onClick={() => router.push(`/groups/${code}/history`)}
-                    variant="secondary"
-                    size="sm"
-                    className="gap-1.5"
-                  >
-                    <History className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">History</span>
-                  </Button>
-                </div>
               </div>
 
-              <div className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-muted/30">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs sm:text-sm font-medium text-muted-foreground">Currency:</span>
+              {/* Currency Selector - Compact Design */}
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200">
+                <span className="text-sm font-medium text-slate-600">Currency</span>
+                <div className="flex-1 flex justify-end">
                   <CurrencySelector value={currency} onChange={setCurrency} />
-                </div>
-                <div className="flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground">
-                  <Users className="h-3.5 w-3.5" />
-                  <span>{groupMembers.length}</span>
                 </div>
               </div>
             </div>
           </div>
+        </div>
 
-        {/* Main Content */}
-        <div className="grid gap-4 sm:gap-5 lg:gap-6 lg:grid-cols-2 w-full min-w-0">
-          {/* Left Column - Input */}
-          <div className="space-y-4 sm:space-y-5 lg:space-y-6 min-w-0">
-            <PeopleManager people={people} setPeople={setPeople} />
+        {/* Main Content - Modern Card Layout */}
+        <div className="mx-auto max-w-7xl px-4 py-4 sm:py-5">
+          <div className="grid gap-4 lg:gap-5 lg:grid-cols-2">
+            {/* Left Column - Input Sections */}
+            <div className="space-y-4 lg:space-y-5">
+              <PeopleManager people={people} setPeople={setPeople} />
 
-            <BillAmountSection
-              total={total}
-              setTotal={setTotal}
-              useLineItems={useLineItems}
-              setUseLineItems={setUseLineItems}
-              items={items}
-              addItem={addItem}
-              removeItem={removeItem}
-              updateItem={updateItem}
-              people={people}
-              currency={currency}
-              calculations={calculations}
-            />
-
-            <PaymentTracker
-              people={people}
-              payers={payers}
-              upsertPayer={upsertPayer}
-              currency={currency}
-              calculations={calculations}
-            />
-          </div>
-
-          {/* Right Column - Split & Results */}
-          <div className="space-y-4 sm:space-y-5 lg:space-y-6 min-w-0">
-            <SplitMethodSelector
-              method={method}
-              setMethod={setMethod}
-              people={people}
-              exactByPerson={exactByPerson}
-              setExactByPerson={setExactByPerson}
-              percentByPerson={percentByPerson}
-              setPercentByPerson={setPercentByPerson}
-              sharesByPerson={sharesByPerson}
-              setSharesByPerson={setSharesByPerson}
-              useLineItems={useLineItems}
-              currency={currency}
-              calculations={calculations}
-            />
-
-            <ResultsDisplay
-              calculations={calculations}
-              currency={currency}
-              method={method}
-              useLineItems={useLineItems}
-            />
-
-            {/* Save to Group Button */}
-            {group && (
-              <SaveToGroupButton
-                groupId={group.id}
-                groupCode={group.code}
+              <BillAmountSection
+                total={total}
+                setTotal={setTotal}
+                useLineItems={useLineItems}
+                setUseLineItems={setUseLineItems}
+                items={items}
+                addItem={addItem}
+                removeItem={removeItem}
+                updateItem={updateItem}
                 people={people}
                 currency={currency}
-                total={calculations.totalToUse}
-                items={items}
+                calculations={calculations}
+              />
+
+              <PaymentTracker
+                people={people}
                 payers={payers}
+                upsertPayer={upsertPayer}
+                currency={currency}
+                calculations={calculations}
+              />
+            </div>
+
+            {/* Right Column - Split & Results */}
+            <div className="space-y-4 lg:space-y-5">
+              <SplitMethodSelector
+                method={method}
+                setMethod={setMethod}
+                people={people}
+                exactByPerson={exactByPerson}
+                setExactByPerson={setExactByPerson}
+                percentByPerson={percentByPerson}
+                setPercentByPerson={setPercentByPerson}
+                sharesByPerson={sharesByPerson}
+                setSharesByPerson={setSharesByPerson}
+                useLineItems={useLineItems}
+                currency={currency}
+                calculations={calculations}
+              />
+
+              <ResultsDisplay
+                calculations={calculations}
+                currency={currency}
                 method={method}
                 useLineItems={useLineItems}
-                exactByPerson={exactByPerson}
-                percentByPerson={percentByPerson}
-                sharesByPerson={sharesByPerson}
-                transfers={calculations.transfers}
               />
-            )}
+
+              {/* Save to Group Button */}
+              {group && (
+                <SaveToGroupButton
+                  groupId={group.id}
+                  groupCode={group.code}
+                  people={people}
+                  currency={currency}
+                  total={calculations.totalToUse}
+                  items={items}
+                  payers={payers}
+                  method={method}
+                  useLineItems={useLineItems}
+                  exactByPerson={exactByPerson}
+                  percentByPerson={percentByPerson}
+                  sharesByPerson={sharesByPerson}
+                  transfers={calculations.transfers}
+                />
+              )}
+            </div>
           </div>
-        </div>
         </div>
       </div>
     </TooltipProvider>
