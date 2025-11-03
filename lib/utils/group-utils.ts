@@ -336,6 +336,78 @@ export async function markSettlementsAsPaid(
 }
 
 /**
+ * Helper function: Reduces settlement amounts in FIFO order
+ * Used for partial offsetting when debts don't fully cancel out
+ *
+ * @param settlements - Array of settlements to reduce (must be sorted by created_at ASC)
+ * @param offsetAmount - Total amount to offset/reduce from these settlements
+ * @returns Number of settlements modified (closed or amount reduced)
+ *
+ * Algorithm:
+ * - Process settlements oldest-first (FIFO)
+ * - If settlement.amount >= offsetAmount: reduce by offsetAmount, stop
+ * - If settlement.amount < offsetAmount: close settlement, continue with remainder
+ *
+ * Example:
+ * - Settlements: [100 (old), 80 (new)]
+ * - Offset: 150
+ * - Result: First settlement closed (100), second reduced to 30 (80-50)
+ */
+async function reduceSettlementsInFIFOOrder(
+  settlements: GroupSettlement[],
+  offsetAmount: number
+): Promise<number> {
+  let remainingOffset = clamp2(offsetAmount);
+  let modifiedCount = 0;
+  const ZERO_THRESHOLD = 0.01;
+
+  // Process settlements in order (already sorted by created_at ASC)
+  for (const settlement of settlements) {
+    if (remainingOffset < ZERO_THRESHOLD) {
+      // No more offset to apply
+      break;
+    }
+
+    if (settlement.amount <= remainingOffset + ZERO_THRESHOLD) {
+      // This settlement is FULLY offset - close it
+      const { error } = await supabase
+        .from('group_settlements')
+        .update({
+          status: 'closed',
+          closed_at: new Date().toISOString(),
+          reconciliation_method: 'auto_offset',
+        })
+        .eq('id', settlement.id)
+        .eq('status', 'open'); // Safety: only update if still open
+
+      if (!error) {
+        modifiedCount++;
+        remainingOffset = clamp2(remainingOffset - settlement.amount);
+      }
+    } else {
+      // This settlement is PARTIALLY offset - reduce its amount
+      const newAmount = clamp2(settlement.amount - remainingOffset);
+
+      const { error } = await supabase
+        .from('group_settlements')
+        .update({
+          amount: newAmount,
+        })
+        .eq('id', settlement.id)
+        .eq('status', 'open'); // Safety: only update if still open
+
+      if (!error) {
+        modifiedCount++;
+        remainingOffset = 0; // All offset has been applied
+      }
+      break; // No more offset to apply
+    }
+  }
+
+  return modifiedCount;
+}
+
+/**
  * Auto-reconciles offsetting settlements between members
  * This detects when debts cancel out (A owes B, B owes A) and automatically
  * marks them as reconciled via offset
@@ -344,13 +416,13 @@ export async function markSettlementsAsPaid(
  * 1. Group all open settlements by person-pairs
  * 2. Calculate net debt for each pair
  * 3. If net ≈ 0: Close ALL settlements between them (fully offset)
- * 4. If net > 0: Close all settlements in smaller direction (partial offset)
+ * 4. If net > 0: Close all settlements in smaller direction AND reduce larger direction (partial offset)
  *
  * Edge cases handled:
  * - Circular debts (A→B, B→C, C→A)
  * - Multiple expenses same direction
  * - Floating point precision (uses 0.01 threshold)
- * - Partial offsets (FIFO ordering)
+ * - Partial offsets (FIFO ordering - oldest settlements offset first)
  */
 export async function autoReconcileOffsetSettlements(groupId: string): Promise<{
   reconciledCount: number;
@@ -439,18 +511,25 @@ export async function autoReconcileOffsetSettlements(groupId: string): Promise<{
       } else {
         // ===== PARTIAL OFFSET: Net > 0 =====
         // Close all settlements in the SMALLER direction
-        // The larger direction remains open (representing the net debt)
+        // Reduce settlements in the LARGER direction by the offset amount
 
         let settlementsToClose: GroupSettlement[] = [];
+        let settlementsToReduce: GroupSettlement[] = [];
+        let offsetAmount: number = 0;
 
         if (netAmount > 0) {
           // Forward > Backward: Close all backward settlements (fully offset)
           settlementsToClose = backward;
+          settlementsToReduce = forward;
+          offsetAmount = backwardTotal;
         } else {
           // Backward > Forward: Close all forward settlements (fully offset)
           settlementsToClose = forward;
+          settlementsToReduce = backward;
+          offsetAmount = forwardTotal;
         }
 
+        // Close all settlements in smaller direction
         if (settlementsToClose.length > 0) {
           const settlementIds = settlementsToClose.map(s => s.id);
 
@@ -466,6 +545,16 @@ export async function autoReconcileOffsetSettlements(groupId: string): Promise<{
           if (!error) {
             totalReconciled += settlementIds.length;
           }
+        }
+
+        // Reduce settlements in larger direction using FIFO (oldest first)
+        // This is the KEY FIX: reduce the amounts of partially-offset settlements
+        if (settlementsToReduce.length > 0 && offsetAmount > 0) {
+          const reducedCount = await reduceSettlementsInFIFOOrder(
+            settlementsToReduce,
+            offsetAmount
+          );
+          totalReconciled += reducedCount;
         }
       }
     }
