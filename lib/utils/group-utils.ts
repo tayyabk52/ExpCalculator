@@ -194,7 +194,7 @@ export async function ensureGroupMembers(
 // ============================================
 
 /**
- * Calculates net settlements from all open settlements in a group
+ * Calculates net settlements from all settlements in a group
  * This implements the auto-netting feature
  * Also automatically reconciles offsetting settlements before calculating net
  */
@@ -204,26 +204,31 @@ export async function calculateNetSettlements(
   // First, run auto-reconciliation to close offsetting settlements
   await autoReconcileOffsetSettlements(groupId);
 
-  // Fetch all open settlements (after reconciliation)
-  const { data: settlements, error } = await supabase
+  // Fetch ALL settlements (both open and closed)
+  const { data: allSettlements, error } = await supabase
     .from('group_settlements')
     .select('*')
-    .eq('group_id', groupId)
-    .eq('status', 'open');
+    .eq('group_id', groupId);
 
-  if (error || !settlements) return [];
+  if (error || !allSettlements) return [];
 
-  // Build a map of net amounts between each pair of people
+  // Build separate maps for open and closed settlements
   // Key format: "personA|personB" (alphabetically sorted)
-  const pairMap: Record<string, {
-    fromA: number;  // Total amount A owes B
-    fromB: number;  // Total amount B owes A
+  type PairData = {
+    fromA: number;
+    fromB: number;
     expenseIds: Set<string>;
-  }> = {};
+  };
 
-  settlements.forEach(settlement => {
+  const openPairMap: Record<string, PairData> = {};
+  const closedPairMap: Record<string, PairData> = {};
+
+  allSettlements.forEach(settlement => {
     const [person1, person2] = [settlement.from_member, settlement.to_member].sort();
     const key = `${person1}|${person2}`;
+
+    // Choose the appropriate map based on settlement status
+    const pairMap = settlement.status === 'open' ? openPairMap : closedPairMap;
 
     if (!pairMap[key]) {
       pairMap[key] = { fromA: 0, fromB: 0, expenseIds: new Set() };
@@ -241,10 +246,11 @@ export async function calculateNetSettlements(
     pairMap[key].expenseIds.add(settlement.expense_id);
   });
 
-  // Calculate net settlements
+  // Calculate net settlements for both open and closed
   const netSettlements: NetSettlement[] = [];
 
-  Object.entries(pairMap).forEach(([key, data]) => {
+  // Process open settlements
+  Object.entries(openPairMap).forEach(([key, data]) => {
     const [person1, person2] = key.split('|');
     const netAmount = clamp2(data.fromA - data.fromB);
 
@@ -254,6 +260,22 @@ export async function calculateNetSettlements(
         to: netAmount > 0 ? person2 : person1,
         amount: clamp2(Math.abs(netAmount)),
         status: 'open',
+        relatedExpenses: Array.from(data.expenseIds),
+      });
+    }
+  });
+
+  // Process closed settlements
+  Object.entries(closedPairMap).forEach(([key, data]) => {
+    const [person1, person2] = key.split('|');
+    const netAmount = clamp2(data.fromA - data.fromB);
+
+    if (Math.abs(netAmount) > 0.01) { // Ignore amounts less than 1 cent
+      netSettlements.push({
+        from: netAmount > 0 ? person1 : person2,
+        to: netAmount > 0 ? person2 : person1,
+        amount: clamp2(Math.abs(netAmount)),
+        status: 'closed',
         relatedExpenses: Array.from(data.expenseIds),
       });
     }
