@@ -40,7 +40,7 @@ export default function GroupCalculatorPage() {
 
   // Offline state
   const isOffline = useOffline();
-  const { cachedGroup, isCached } = useGroupCache(code, group, groupMembers);
+  const { cachedGroup, isCached, isLoadingCache } = useGroupCache(code, group, groupMembers);
   const { hasPending, pendingCount } = useGroupSyncStatus(code);
 
   // Calculator state
@@ -74,31 +74,43 @@ export default function GroupCalculatorPage() {
       try {
         setIsLoading(true);
 
-        // If offline, try to load from cache
-        if (isOffline && cachedGroup) {
-          console.log('📴 Loading group from cache');
-          
-          setGroup({
-            id: '',
-            code: cachedGroup.code,
-            name: cachedGroup.name,
-            created_at: new Date().toISOString(),
-          } as Group);
-          
-          setGroupMembers(cachedGroup.members);
-
-          // Auto-populate members as people in calculator
-          if (cachedGroup.members.length > 0) {
-            const initialPeople: Person[] = cachedGroup.members.map(member => ({
-              id: generateId(),
-              name: member.name,
-              active: true,
-            }));
-            setPeople(initialPeople);
+        // If offline, wait for cache to load first
+        if (isOffline) {
+          if (isLoadingCache) {
+            // Still loading cache, wait
+            return;
           }
+          
+          if (cachedGroup) {
+            console.log('📴 Loading group from cache');
+            
+            setGroup({
+              id: '',
+              code: cachedGroup.code,
+              name: cachedGroup.name,
+              created_at: new Date().toISOString(),
+            } as Group);
+            
+            setGroupMembers(cachedGroup.members);
 
-          setIsLoading(false);
-          return;
+            // Auto-populate members as people in calculator
+            if (cachedGroup.members.length > 0) {
+              const initialPeople: Person[] = cachedGroup.members.map(member => ({
+                id: generateId(),
+                name: member.name,
+                active: true,
+              }));
+              setPeople(initialPeople);
+            }
+
+            setIsLoading(false);
+            return;
+          } else {
+            // No cached data available
+            setError('This group is not available offline. Please connect to the internet to load it.');
+            setIsLoading(false);
+            return;
+          }
         }
 
         // Online: fetch from Supabase
@@ -157,7 +169,7 @@ export default function GroupCalculatorPage() {
     }
 
     loadGroup();
-  }, [code, isOffline, cachedGroup]);
+  }, [code, isOffline, cachedGroup, isLoadingCache]);
 
   // Auto-switch to EXACT when using line items
   useEffect(() => {
