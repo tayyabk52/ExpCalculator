@@ -210,6 +210,13 @@ export default function ExpenseCard({ expense, settlements, onViewDetails }: Exp
                   const toPerson = expense_data.people.find(p => p.id === owed.to);
                   const settlement = personSettlements.find(s => s.to_member === toPerson?.name);
 
+                  const originalAmount = owed.amount;
+                  const currentAmount = settlement?.amount ?? originalAmount;
+                  const totalAutoSettled = settlement?.offset_history?.reduce(
+                    (sum, offset) => sum + offset.offset_amount, 0
+                  ) ?? 0;
+                  const hasBeenOffset = totalAutoSettled > 0;
+
                   return (
                     <div
                       key={person.id}
@@ -221,11 +228,29 @@ export default function ExpenseCard({ expense, settlements, onViewDetails }: Exp
                           {' → '}
                           <span className="font-medium text-slate-800">{toPerson?.name}</span>
                         </span>
+                        {hasBeenOffset && settlement?.status === 'open' && (
+                          <div className="mt-1 text-[10px] sm:text-xs text-emerald-600">
+                            ✓ Auto-settled: {formatCurrency(totalAutoSettled, expense.currency)}
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className="text-xs sm:text-sm font-semibold text-slate-900 whitespace-nowrap">
-                          {formatCurrency(owed.amount, expense.currency)}
-                        </span>
+                        <div className="text-right">
+                          {hasBeenOffset && settlement?.status === 'open' ? (
+                            <>
+                              <div className="text-xs sm:text-sm font-semibold text-slate-900 whitespace-nowrap">
+                                {formatCurrency(currentAmount, expense.currency)}
+                              </div>
+                              <div className="text-[10px] sm:text-xs text-slate-500 line-through whitespace-nowrap">
+                                {formatCurrency(originalAmount, expense.currency)}
+                              </div>
+                            </>
+                          ) : (
+                            <span className="text-xs sm:text-sm font-semibold text-slate-900 whitespace-nowrap">
+                              {formatCurrency(originalAmount, expense.currency)}
+                            </span>
+                          )}
+                        </div>
                         {settlement?.status === 'closed' ? (
                           settlement.reconciliation_method === 'auto_offset' ? (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-[10px] sm:text-xs font-medium text-blue-700">
