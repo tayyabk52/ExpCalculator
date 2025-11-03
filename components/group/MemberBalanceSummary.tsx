@@ -50,7 +50,7 @@ export default function MemberBalanceSummary({ balances, currency }: MemberBalan
   return (
     <div className="space-y-4">
       <div className="px-4 sm:px-0">
-        <p className="text-sm text-slate-500">Overall balance for each member</p>
+        <p className="text-sm text-slate-500">Current balance for each member (open settlements only)</p>
       </div>
 
       <div className="space-y-2 sm:space-y-4">

@@ -204,14 +204,21 @@ export function exportGroupStatement(data: GroupStatementData): void {
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
-  doc.text('Member Balances', margin, yPos);
+  doc.text('Current Member Balances', margin, yPos);
+  yPos += 6;
+
+  // Subtitle
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'italic');
+  doc.setTextColor(100, 100, 100);
+  doc.text('(Open settlements only - excludes already settled amounts)', margin, yPos);
   yPos += 8;
 
   if (memberBalances.length === 0) {
     doc.setFontSize(11);
     doc.setFont('helvetica', 'italic');
     doc.setTextColor(150, 150, 150);
-    doc.text('No members found', margin + 5, yPos);
+    doc.text('No open balances - all settled!', margin + 5, yPos);
     yPos += 10;
   } else {
     doc.setFontSize(10);
@@ -222,8 +229,8 @@ export function exportGroupStatement(data: GroupStatementData): void {
     doc.rect(margin, yPos - 5, pageWidth - 2 * margin, 8, 'F');
     doc.setFont('helvetica', 'bold');
     doc.text('Member', margin + 3, yPos);
-    doc.text('Total Paid', margin + 80, yPos);
-    doc.text('Total Owed', margin + 120, yPos);
+    doc.text('To Receive', margin + 80, yPos);
+    doc.text('To Pay', margin + 120, yPos);
     doc.text('Net Balance', margin + 160, yPos);
     yPos += 8;
 

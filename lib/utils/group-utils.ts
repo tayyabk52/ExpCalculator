@@ -286,6 +286,7 @@ export async function calculateNetSettlements(
 
 /**
  * Calculates member balances showing who owes whom
+ * Only includes OPEN settlements (not closed/settled ones)
  */
 export async function calculateMemberBalances(
   groupId: string
@@ -304,8 +305,11 @@ export async function calculateMemberBalances(
     };
   });
 
-  // Process net settlements
-  netSettlements.forEach(settlement => {
+  // Process ONLY OPEN net settlements (exclude closed/settled)
+  // Closed settlements are already paid and shouldn't affect current balances
+  const openSettlements = netSettlements.filter(s => s.status === 'open');
+
+  openSettlements.forEach(settlement => {
     // Debtor (from)
     if (balanceMap[settlement.from]) {
       balanceMap[settlement.from].netBalance -= settlement.amount;
