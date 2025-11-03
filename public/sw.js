@@ -1,7 +1,7 @@
 // Service Worker for CalcHub PWA
-const CACHE_NAME = 'calchub-v1';
-const STATIC_CACHE = 'calchub-static-v1';
-const DYNAMIC_CACHE = 'calchub-dynamic-v1';
+const CACHE_NAME = 'calchub-v2';
+const STATIC_CACHE = 'calchub-static-v2';
+const DYNAMIC_CACHE = 'calchub-dynamic-v2';
 
 // Assets to cache on install
 const STATIC_ASSETS = [
@@ -54,9 +54,38 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Skip API routes - always fetch fresh data
+  if (url.pathname.startsWith('/api/')) {
+    return;
+  }
+
+  // Skip Supabase requests - always fetch fresh data
+  if (url.hostname.includes('supabase')) {
+    return;
+  }
+
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
-      // Return cached response if found
+      // For HTML pages, try network first, fallback to cache
+      if (request.headers.get('accept')?.includes('text/html')) {
+        return fetch(request)
+          .then((response) => {
+            // Cache the new version
+            if (response && response.status === 200) {
+              const responseToCache = response.clone();
+              caches.open(DYNAMIC_CACHE).then((cache) => {
+                cache.put(request, responseToCache);
+              });
+            }
+            return response;
+          })
+          .catch(() => {
+            // Fallback to cache when offline
+            return cachedResponse || caches.match('/');
+          });
+      }
+
+      // For static assets, use cache first
       if (cachedResponse) {
         return cachedResponse;
       }
@@ -68,7 +97,7 @@ self.addEventListener('fetch', (event) => {
           return response;
         }
 
-        // Cache successful responses
+        // Cache successful responses (only static assets)
         const responseToCache = response.clone();
         
         // Only cache same-origin or CORS-enabled requests
