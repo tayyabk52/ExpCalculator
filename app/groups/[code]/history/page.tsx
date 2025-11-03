@@ -375,6 +375,7 @@ export default function GroupHistoryPage() {
                   <ExportGroupStatementButton
                     group={group}
                     expenses={expenses}
+                    settlements={settlements}
                     netSettlements={netSettlements}
                     memberBalances={memberBalances}
                     currency={currency}

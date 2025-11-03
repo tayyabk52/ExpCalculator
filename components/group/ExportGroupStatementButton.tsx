@@ -4,17 +4,19 @@ import { useState } from 'react';
 import { FileDown, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { exportGroupStatement } from '@/lib/utils/group-pdf-exporter';
-import type { 
-  Group, 
-  GroupExpense, 
-  NetSettlement, 
-  MemberBalance 
+import type {
+  Group,
+  GroupExpense,
+  GroupSettlement,
+  NetSettlement,
+  MemberBalance
 } from '@/lib/types/group';
 import type { Currency } from '@/lib/types/expense';
 
 interface ExportGroupStatementButtonProps {
   group: Group;
   expenses: GroupExpense[];
+  settlements: GroupSettlement[];
   netSettlements: NetSettlement[];
   memberBalances: MemberBalance[];
   currency: Currency;
@@ -26,6 +28,7 @@ interface ExportGroupStatementButtonProps {
 export default function ExportGroupStatementButton({
   group,
   expenses,
+  settlements,
   netSettlements,
   memberBalances,
   currency,
@@ -45,6 +48,7 @@ export default function ExportGroupStatementButton({
       exportGroupStatement({
         group,
         expenses,
+        settlements,
         netSettlements,
         memberBalances,
         currency,

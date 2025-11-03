@@ -1,9 +1,10 @@
 import jsPDF from 'jspdf';
-import type { 
-  Group, 
-  GroupExpense, 
-  NetSettlement, 
-  MemberBalance 
+import type {
+  Group,
+  GroupExpense,
+  GroupSettlement,
+  NetSettlement,
+  MemberBalance
 } from '@/lib/types/group';
 import type { Currency } from '@/lib/types/expense';
 import { formatGroupCode } from './group-utils';
@@ -12,6 +13,7 @@ import { format } from 'date-fns';
 interface GroupStatementData {
   group: Group;
   expenses: GroupExpense[];
+  settlements: GroupSettlement[];
   netSettlements: NetSettlement[];
   memberBalances: MemberBalance[];
   currency: Currency;
@@ -31,7 +33,7 @@ const CURRENCY_SYMBOLS: Record<Currency, string> = {
 };
 
 export function exportGroupStatement(data: GroupStatementData): void {
-  const { group, expenses, netSettlements, memberBalances, currency } = data;
+  const { group, expenses, settlements, netSettlements, memberBalances, currency } = data;
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -292,12 +294,28 @@ export function exportGroupStatement(data: GroupStatementData): void {
     );
 
     sortedExpenses.forEach((expense, index) => {
-      checkPageBreak(25);
+      const expenseData = expense.expense_data;
+      const expenseSettlements = settlements.filter(s => s.expense_id === expense.id);
 
-      // Expense card
+      // Calculate required space based on content
+      const hasSettlements = expenseSettlements.length > 0;
+      const hasOffsetHistory = expenseSettlements.some(s => s.offset_history && s.offset_history.length > 0);
+      let estimatedHeight = 25; // Base height
+      if (hasSettlements) {
+        estimatedHeight += expenseSettlements.length * 7 + 8; // Settlements
+      }
+      if (hasOffsetHistory) {
+        const totalOffsetEntries = expenseSettlements.reduce(
+          (sum, s) => sum + (s.offset_history?.length || 0), 0
+        );
+        estimatedHeight += totalOffsetEntries * 10 + 10; // Offset history
+      }
+
+      checkPageBreak(estimatedHeight);
+
+      // Expense card header
       doc.setFillColor(248, 250, 252);
-      const cardHeight = 20;
-      doc.roundedRect(margin, yPos - 3, pageWidth - 2 * margin, cardHeight, 2, 2, 'F');
+      doc.roundedRect(margin, yPos - 3, pageWidth - 2 * margin, 18, 2, 2, 'F');
 
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
@@ -314,14 +332,12 @@ export function exportGroupStatement(data: GroupStatementData): void {
       doc.setTextColor(0, 0, 0);
       doc.text(formatCurrency(expense.total_amount), pageWidth - margin - 3, yPos + 2, { align: 'right' });
 
-      // Participants summary
-      const expenseData = expense.expense_data;
-      
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(100, 100, 100);
       const splitMethod = expenseData?.method || 'EQUAL';
       doc.text(splitMethod, pageWidth - margin - 3, yPos + 8, { align: 'right' });
+
       if (expenseData?.people && expenseData.people.length > 0) {
         doc.setFontSize(9);
         doc.setTextColor(100, 100, 100);
@@ -331,7 +347,110 @@ export function exportGroupStatement(data: GroupStatementData): void {
         doc.text(participantsText, margin + 3, yPos + 14);
       }
 
-      yPos += cardHeight + 3;
+      yPos += 18 + 3;
+
+      // Settlements section
+      if (hasSettlements) {
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(60, 60, 60);
+        doc.text('Settlements:', margin + 5, yPos);
+        yPos += 6;
+
+        expenseSettlements.forEach(settlement => {
+          const originalTransfer = expenseData.transfers?.find(t => {
+            const fromPerson = expenseData.people.find(p => p.id === t.from);
+            const toPerson = expenseData.people.find(p => p.id === t.to);
+            return fromPerson?.name === settlement.from_member && toPerson?.name === settlement.to_member;
+          });
+
+          const originalAmount = originalTransfer?.amount || settlement.amount;
+          const currentAmount = settlement.amount;
+          const totalAutoSettled = settlement.offset_history?.reduce(
+            (sum, offset) => sum + offset.offset_amount, 0
+          ) || 0;
+          const hasBeenOffset = totalAutoSettled > 0;
+
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(0, 0, 0);
+
+          // Settlement row
+          const settlementText = `${settlement.from_member} → ${settlement.to_member}`;
+          doc.text(settlementText, margin + 8, yPos);
+
+          // Amount display
+          if (hasBeenOffset && settlement.status === 'open') {
+            // Current amount (bold)
+            doc.setFont('helvetica', 'bold');
+            doc.text(formatCurrency(currentAmount), margin + 120, yPos);
+
+            // Original amount (strikethrough effect using line)
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(120, 120, 120);
+            const originalText = formatCurrency(originalAmount);
+            doc.text(originalText, margin + 150, yPos);
+            const textWidth = doc.getTextWidth(originalText);
+            doc.setDrawColor(120, 120, 120);
+            doc.setLineWidth(0.3);
+            doc.line(margin + 150, yPos - 1.5, margin + 150 + textWidth, yPos - 1.5);
+
+            // Status badge
+            doc.setTextColor(34, 139, 34);
+            doc.text(`(-${formatCurrency(totalAutoSettled)})`, pageWidth - margin - 3, yPos, { align: 'right' });
+          } else {
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(0, 0, 0);
+            doc.text(formatCurrency(originalAmount), margin + 120, yPos);
+
+            // Status
+            if (settlement.status === 'closed') {
+              if (settlement.reconciliation_method === 'auto_offset') {
+                doc.setTextColor(34, 139, 34);
+                doc.text('Auto-settled', pageWidth - margin - 3, yPos, { align: 'right' });
+              } else {
+                doc.setTextColor(34, 139, 34);
+                doc.text('Paid', pageWidth - margin - 3, yPos, { align: 'right' });
+              }
+            } else {
+              doc.setTextColor(234, 88, 12);
+              doc.text('Open', pageWidth - margin - 3, yPos, { align: 'right' });
+            }
+          }
+
+          yPos += 7;
+
+          // Offset history
+          if (settlement.offset_history && settlement.offset_history.length > 0) {
+            doc.setFontSize(8);
+            doc.setTextColor(100, 100, 100);
+            doc.text('Offset History:', margin + 12, yPos);
+            yPos += 5;
+
+            settlement.offset_history.forEach(offset => {
+              doc.setFont('helvetica', 'normal');
+              doc.setTextColor(80, 80, 80);
+
+              const offsetDate = format(new Date(offset.offset_at), 'MMM dd');
+              const offsetText = `• ${offsetDate} - Auto-offset by "${offset.offset_by_expense_title}"`;
+              doc.text(offsetText, margin + 15, yPos);
+              yPos += 4;
+
+              const detailText = `  ${offset.offset_from} paid ${offset.offset_to} ${formatCurrency(offset.offset_amount)}`;
+              doc.text(detailText, margin + 15, yPos);
+              yPos += 4;
+
+              const amountText = `  Reduced: ${formatCurrency(offset.previous_amount)} → ${formatCurrency(offset.new_amount)}`;
+              doc.text(amountText, margin + 15, yPos);
+              yPos += 5;
+            });
+          }
+        });
+
+        yPos += 2;
+      }
+
+      yPos += 3;
     });
   }
 
