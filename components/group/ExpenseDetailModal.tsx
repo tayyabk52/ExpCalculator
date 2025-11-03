@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X, Calendar, Users as UsersIcon, CreditCard, ArrowRightLeft, Receipt } from 'lucide-react';
+import { X, Calendar, Users as UsersIcon, CreditCard, ArrowRightLeft, Receipt, History } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils/expense-utils';
-import type { GroupExpense } from '@/lib/types/group';
+import type { GroupExpense, GroupSettlement } from '@/lib/types/group';
 import { format } from 'date-fns';
+import { getExpenseSettlements } from '@/lib/utils/group-utils';
 
 type ExpenseDetailModalProps = {
   expense: GroupExpense | null;
@@ -18,15 +19,22 @@ export default function ExpenseDetailModal({
   onClose,
 }: ExpenseDetailModalProps) {
   const [isVisible, setIsVisible] = useState(false);
+  const [settlements, setSettlements] = useState<GroupSettlement[]>([]);
 
   useEffect(() => {
     if (isOpen) {
       // Small delay to trigger animation after render
       setTimeout(() => setIsVisible(true), 10);
+
+      // Fetch settlements for this expense
+      if (expense?.id) {
+        getExpenseSettlements(expense.id).then(setSettlements);
+      }
     } else {
       setIsVisible(false);
+      setSettlements([]);
     }
-  }, [isOpen]);
+  }, [isOpen, expense?.id]);
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
@@ -219,6 +227,18 @@ export default function ExpenseDetailModal({
                     const fromPerson = expense_data.people.find(p => p.id === transfer.from);
                     const toPerson = expense_data.people.find(p => p.id === transfer.to);
 
+                    // Find matching settlement to show current vs original amount
+                    const settlement = settlements.find(
+                      s => s.from_member === fromPerson?.name && s.to_member === toPerson?.name
+                    );
+
+                    const originalAmount = transfer.amount;
+                    const currentAmount = settlement?.amount ?? originalAmount;
+                    const totalAutoSettled = settlement?.offset_history?.reduce(
+                      (sum, offset) => sum + offset.offset_amount, 0
+                    ) ?? 0;
+                    const hasBeenOffset = totalAutoSettled > 0;
+
                     return (
                       <div
                         key={idx}
@@ -234,18 +254,94 @@ export default function ExpenseDetailModal({
                               {getInitials(toPerson?.name || 'Unknown')}
                             </div>
                           </div>
-                          <span className="text-sm font-semibold text-slate-900">
-                            {formatCurrency(transfer.amount, expense.currency)}
-                          </span>
+                          <div className="text-right">
+                            {hasBeenOffset && settlement?.status === 'open' ? (
+                              <>
+                                <div className="text-sm font-semibold text-slate-900">
+                                  {formatCurrency(currentAmount, expense.currency)}
+                                </div>
+                                <div className="text-xs text-slate-500 line-through">
+                                  {formatCurrency(originalAmount, expense.currency)}
+                                </div>
+                              </>
+                            ) : (
+                              <span className="text-sm font-semibold text-slate-900">
+                                {formatCurrency(originalAmount, expense.currency)}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="text-xs text-slate-600">
                           <span className="font-medium text-slate-900">{fromPerson?.name}</span>
                           {' '}owes{' '}
                           <span className="font-medium text-slate-900">{toPerson?.name}</span>
                         </div>
+                        {hasBeenOffset && settlement?.status === 'open' && (
+                          <div className="mt-2 pt-2 border-t border-emerald-300">
+                            <div className="text-xs text-emerald-700">
+                              ✓ Auto-settled: {formatCurrency(totalAutoSettled, expense.currency)}
+                            </div>
+                          </div>
+                        )}
+                        {settlement?.status === 'closed' && settlement.reconciliation_method === 'auto_offset' && (
+                          <div className="mt-2 pt-2 border-t border-emerald-300">
+                            <div className="text-xs text-emerald-700">
+                              ✓ Fully auto-settled
+                            </div>
+                          </div>
+                        )}
+                        {settlement?.status === 'closed' && settlement.reconciliation_method === 'manual_payment' && (
+                          <div className="mt-2 pt-2 border-t border-emerald-300">
+                            <div className="text-xs text-emerald-700">
+                              ✓ Paid on {format(new Date(settlement.closed_at!), 'MMM d, yyyy')}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
+                </div>
+              </div>
+            )}
+
+            {/* Settlement Offset History Section */}
+            {settlements.some(s => s.offset_history && s.offset_history.length > 0) && (
+              <div className="animated-content delay-600">
+                <div className="flex items-center gap-2 mb-3">
+                  <History className="h-4 w-4 text-slate-600" />
+                  <h3 className="text-sm font-semibold text-slate-900">Settlement History</h3>
+                </div>
+                <div className="space-y-3">
+                  {settlements
+                    .filter(s => s.offset_history && s.offset_history.length > 0)
+                    .map(settlement => (
+                      <div key={settlement.id} className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                        <div className="text-xs font-medium text-slate-700 mb-2">
+                          {settlement.from_member} → {settlement.to_member}
+                        </div>
+                        <div className="space-y-2">
+                          {settlement.offset_history.map((offset, idx) => (
+                            <div key={idx} className="flex items-start gap-2 text-xs">
+                              <div className="w-1 h-1 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0"></div>
+                              <div className="flex-1">
+                                <div className="text-slate-900">
+                                  <span className="font-medium">{format(new Date(offset.offset_at), 'MMM d, yyyy')}</span>
+                                  {' - '}Auto-offset by "{offset.offset_by_expense_title}"
+                                </div>
+                                <div className="text-slate-600 mt-0.5">
+                                  {offset.offset_from} paid {offset.offset_to}{' '}
+                                  {formatCurrency(offset.offset_amount, expense.currency)}
+                                </div>
+                                <div className="text-slate-500 mt-0.5">
+                                  Reduced from {formatCurrency(offset.previous_amount, expense.currency)}{' '}
+                                  to {formatCurrency(offset.new_amount, expense.currency)}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                 </div>
               </div>
             )}

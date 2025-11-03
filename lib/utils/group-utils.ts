@@ -341,12 +341,14 @@ export async function markSettlementsAsPaid(
  *
  * @param settlements - Array of settlements to reduce (must be sorted by created_at ASC)
  * @param offsetAmount - Total amount to offset/reduce from these settlements
+ * @param offsettingSettlements - Array of settlements that are causing this offset (for audit trail)
  * @returns Number of settlements modified (closed or amount reduced)
  *
  * Algorithm:
  * - Process settlements oldest-first (FIFO)
  * - If settlement.amount >= offsetAmount: reduce by offsetAmount, stop
  * - If settlement.amount < offsetAmount: close settlement, continue with remainder
+ * - Record offset history for complete audit trail
  *
  * Example:
  * - Settlements: [100 (old), 80 (new)]
@@ -355,11 +357,21 @@ export async function markSettlementsAsPaid(
  */
 async function reduceSettlementsInFIFOOrder(
   settlements: GroupSettlement[],
-  offsetAmount: number
+  offsetAmount: number,
+  offsettingSettlements: GroupSettlement[]
 ): Promise<number> {
   let remainingOffset = clamp2(offsetAmount);
   let modifiedCount = 0;
   const ZERO_THRESHOLD = 0.01;
+
+  // Fetch expense details for offsetting settlements (for audit trail)
+  const offsetExpenseIds = [...new Set(offsettingSettlements.map(s => s.expense_id))];
+  const { data: offsetExpenses } = await supabase
+    .from('group_expenses')
+    .select('id, title')
+    .in('id', offsetExpenseIds);
+
+  const expenseMap = new Map(offsetExpenses?.map(e => [e.id, e.title]) || []);
 
   // Process settlements in order (already sorted by created_at ASC)
   for (const settlement of settlements) {
@@ -368,7 +380,30 @@ async function reduceSettlementsInFIFOOrder(
       break;
     }
 
-    if (settlement.amount <= remainingOffset + ZERO_THRESHOLD) {
+    const offsetAmountForThisSettlement = Math.min(settlement.amount, remainingOffset);
+    const previousAmount = settlement.amount;
+    const newAmount = clamp2(settlement.amount - offsetAmountForThisSettlement);
+    const isFullyOffset = newAmount < ZERO_THRESHOLD;
+
+    // Build offset history entries for all offsetting settlements
+    const offsetHistoryEntries = offsettingSettlements.map(offsetSettlement => ({
+      offset_at: new Date().toISOString(),
+      offset_amount: offsetAmountForThisSettlement,
+      offset_by_expense_id: offsetSettlement.expense_id,
+      offset_by_expense_title: expenseMap.get(offsetSettlement.expense_id) || 'Unknown',
+      offset_settlement_id: offsetSettlement.id,
+      offset_from: offsetSettlement.from_member,
+      offset_to: offsetSettlement.to_member,
+      previous_amount: previousAmount,
+      new_amount: newAmount,
+      method: 'auto_offset' as const,
+    }));
+
+    // Get existing offset history
+    const existingHistory = settlement.offset_history || [];
+    const updatedHistory = [...existingHistory, ...offsetHistoryEntries];
+
+    if (isFullyOffset) {
       // This settlement is FULLY offset - close it
       const { error } = await supabase
         .from('group_settlements')
@@ -376,22 +411,22 @@ async function reduceSettlementsInFIFOOrder(
           status: 'closed',
           closed_at: new Date().toISOString(),
           reconciliation_method: 'auto_offset',
+          offset_history: updatedHistory,
         })
         .eq('id', settlement.id)
         .eq('status', 'open'); // Safety: only update if still open
 
       if (!error) {
         modifiedCount++;
-        remainingOffset = clamp2(remainingOffset - settlement.amount);
+        remainingOffset = clamp2(remainingOffset - offsetAmountForThisSettlement);
       }
     } else {
       // This settlement is PARTIALLY offset - reduce its amount
-      const newAmount = clamp2(settlement.amount - remainingOffset);
-
       const { error } = await supabase
         .from('group_settlements')
         .update({
           amount: newAmount,
+          offset_history: updatedHistory,
         })
         .eq('id', settlement.id)
         .eq('status', 'open'); // Safety: only update if still open
@@ -552,7 +587,8 @@ export async function autoReconcileOffsetSettlements(groupId: string): Promise<{
         if (settlementsToReduce.length > 0 && offsetAmount > 0) {
           const reducedCount = await reduceSettlementsInFIFOOrder(
             settlementsToReduce,
-            offsetAmount
+            offsetAmount,
+            settlementsToClose // These are the settlements causing the offset
           );
           totalReconciled += reducedCount;
         }

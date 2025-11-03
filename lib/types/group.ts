@@ -28,6 +28,19 @@ export type GroupExpense = {
   created_at: string;
 };
 
+export type OffsetHistoryEntry = {
+  offset_at: string;
+  offset_amount: number;
+  offset_by_expense_id: string;
+  offset_by_expense_title: string;
+  offset_settlement_id: string;
+  offset_from: string;
+  offset_to: string;
+  previous_amount: number;
+  new_amount: number;
+  method: 'auto_offset';
+};
+
 export type GroupSettlement = {
   id: string;
   expense_id: string;
@@ -39,6 +52,7 @@ export type GroupSettlement = {
   reconciliation_method: 'manual_payment' | 'auto_offset' | null;
   created_at: string;
   closed_at: string | null;
+  offset_history: OffsetHistoryEntry[];
 };
 
 // ============================================
