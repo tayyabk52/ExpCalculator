@@ -42,7 +42,6 @@ html {
 }
 
 body {
-  font-family: 'Inter', sans-serif;
   background-color: var(--color-background);
   color: var(--color-foreground);
   overflow-x: hidden;
